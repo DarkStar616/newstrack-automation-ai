@@ -4,7 +4,7 @@ Newstrack keyword processing routes with strict JSON schemas and guardrails.
 from flask import Blueprint, request, jsonify, current_app
 import json
 import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
 
@@ -58,6 +58,37 @@ def validate_required_fields(data: Dict[str, Any], required_fields: List[str]) -
             raise ValueError(f"Field '{field}' is required")
 
 
+def normalize_keywords(raw_keywords: Any) -> List[str]:
+    """Normalize keywords from string or array format."""
+    if isinstance(raw_keywords, str):
+        return [kw.strip() for kw in raw_keywords.split('\n') if kw.strip()]
+    elif isinstance(raw_keywords, list):
+        return [str(kw).strip() for kw in raw_keywords if str(kw).strip()]
+    else:
+        return []
+
+
+def dedupe_with_counts(keywords: List[str]) -> Dict[str, Any]:
+    """Deduplicate keywords and return counts."""
+    seen = set()
+    unique = []
+    duplicates = []
+    
+    for kw in keywords:
+        if kw.lower() in seen:
+            if kw not in duplicates:  # Only add first duplicate occurrence
+                duplicates.append(kw)
+        else:
+            seen.add(kw.lower())
+            unique.append(kw)
+    
+    return {
+        'unique': unique,
+        'duplicates_dropped_count': len(duplicates),
+        'duplicates_dropped_list': duplicates
+    }
+
+
 @newstrack_bp.route('/categorize', methods=['POST'])
 def categorize_keywords():
     """
@@ -75,13 +106,25 @@ def categorize_keywords():
         
         sector = data['sector'].strip()
         company = data.get('company', '').strip() or None
-        keywords = data['keywords']
+        raw_keywords = data['keywords']
         
-        if not keywords:
+        # Normalize and deduplicate keywords
+        normalized_keywords = normalize_keywords(raw_keywords)
+        if not normalized_keywords:
             return create_error_response(400, "No valid keywords provided")
         
-        # Call service function
-        result = do_categorize(sector, company, keywords)
+        dedupe_result = dedupe_with_counts(normalized_keywords)
+        unique_keywords = dedupe_result['unique']
+        
+        # Call service function with unique keywords
+        result = do_categorize(sector, company, unique_keywords)
+        
+        # Merge duplicate tracking into guardrails
+        result['guardrails']['counts']['input_total'] = len(normalized_keywords)
+        result['guardrails']['counts']['duplicates_dropped'] += dedupe_result['duplicates_dropped_count']
+        result['guardrails']['duplicates_dropped'] = sorted(set(
+            result['guardrails']['duplicates_dropped'] + dedupe_result['duplicates_dropped_list']
+        ))
         
         return jsonify({
             'categories': result['categories'],
@@ -187,14 +230,26 @@ def process_all_steps():
         
         sector = data['sector'].strip()
         company = data.get('company', '').strip() or None
-        keywords = data['keywords']
+        raw_keywords = data['keywords']
         current_date = data.get('date', '2025-09').strip()
         
-        if not keywords:
+        # Normalize and deduplicate keywords
+        normalized_keywords = normalize_keywords(raw_keywords)
+        if not normalized_keywords:
             return create_error_response(400, "No valid keywords provided")
         
-        # Step 1: Categorize
-        categorize_result = do_categorize(sector, company, keywords)
+        dedupe_result = dedupe_with_counts(normalized_keywords)
+        unique_keywords = dedupe_result['unique']
+        
+        # Step 1: Categorize with unique keywords
+        categorize_result = do_categorize(sector, company, unique_keywords)
+        
+        # Merge duplicate tracking into guardrails
+        categorize_result['guardrails']['counts']['input_total'] = len(normalized_keywords)
+        categorize_result['guardrails']['counts']['duplicates_dropped'] += dedupe_result['duplicates_dropped_count']
+        categorize_result['guardrails']['duplicates_dropped'] = sorted(set(
+            categorize_result['guardrails']['duplicates_dropped'] + dedupe_result['duplicates_dropped_list']
+        ))
         
         # Step 2: Expand using the processed categories from guardrails
         expand_result = do_expand(sector, company, categorize_result['processed_categories'])
@@ -214,9 +269,9 @@ def process_all_steps():
             audit_logger.write_batch_audit(
                 batch_id=batch_id,
                 category=sector,
-                input_keywords=keywords,
+                input_keywords=normalized_keywords,  # Use normalized for audit
                 final_categories=drop_result['updated'],
-                guardrails_result=categorize_result,  # Contains guardrails data
+                guardrails_result=categorize_result,  # Contains guardrails data with duplicates
                 timing_ms=processing_time_ms,
                 step='process-all'
             )

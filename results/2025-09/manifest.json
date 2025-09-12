@@ -96,28 +96,236 @@
       "input_total": 5,
       "output_accounted": 3,
       "timing_ms": 1
+    },
+    "2025-09-12-013": {
+      "timestamp": "2025-09-12T14:18:34.301291",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-014": {
+      "timestamp": "2025-09-12T14:26:23.831601",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-015": {
+      "timestamp": "2025-09-12T14:26:42.566415",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-016": {
+      "timestamp": "2025-09-12T14:26:42.579838",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-017": {
+      "timestamp": "2025-09-12T14:26:42.595150",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-018": {
+      "timestamp": "2025-09-12T14:26:42.612869",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-019": {
+      "timestamp": "2025-09-12T14:26:42.623180",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-020": {
+      "timestamp": "2025-09-12T14:26:42.634859",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-021": {
+      "timestamp": "2025-09-12T14:26:42.645070",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-022": {
+      "timestamp": "2025-09-12T14:26:42.656754",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-023": {
+      "timestamp": "2025-09-12T14:26:42.668606",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-024": {
+      "timestamp": "2025-09-12T14:26:42.677538",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-025": {
+      "timestamp": "2025-09-12T14:26:42.686616",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-026": {
+      "timestamp": "2025-09-12T14:26:42.696147",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-027": {
+      "timestamp": "2025-09-12T14:26:42.706257",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-028": {
+      "timestamp": "2025-09-12T14:26:42.714980",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-029": {
+      "timestamp": "2025-09-12T14:26:42.724987",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-030": {
+      "timestamp": "2025-09-12T14:26:42.733040",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-031": {
+      "timestamp": "2025-09-12T14:26:42.741293",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-032": {
+      "timestamp": "2025-09-12T14:26:42.766844",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 6
+    },
+    "2025-09-12-033": {
+      "timestamp": "2025-09-12T14:26:42.780405",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-034": {
+      "timestamp": "2025-09-12T14:26:42.791232",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-035": {
+      "timestamp": "2025-09-12T14:26:42.800602",
+      "category": "short-term insurance",
+      "step": "process-all",
+      "input_total": 87,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-036": {
+      "timestamp": "2025-09-12T14:26:42.813497",
+      "category": "banking",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 3
+    },
+    "2025-09-12-037": {
+      "timestamp": "2025-09-12T14:26:42.834837",
+      "category": "banking",
+      "step": "process-all",
+      "input_total": 300,
+      "output_accounted": 3,
+      "timing_ms": 6
+    },
+    "2025-09-12-038": {
+      "timestamp": "2025-09-12T14:26:42.861814",
+      "category": "banking",
+      "step": "process-all",
+      "input_total": 183,
+      "output_accounted": 3,
+      "timing_ms": 11
     }
   },
   "totals": {
-    "total_batches": 12,
-    "total_keywords_processed": 37,
-    "total_keywords_output": 36,
-    "total_duplicates_dropped": 0,
+    "total_batches": 38,
+    "total_keywords_processed": 6915,
+    "total_keywords_output": 114,
+    "total_duplicates_dropped": 222,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 20
+    "total_timing_ms": 98
   },
   "categories": {
     "industry": {
-      "batches": 2,
-      "keywords": 2
+      "batches": 28,
+      "keywords": 28
     },
     "company": {
-      "batches": 2,
-      "keywords": 2
+      "batches": 28,
+      "keywords": 28
     },
     "regulatory": {
-      "batches": 2,
-      "keywords": 2
+      "batches": 28,
+      "keywords": 28
     }
   }
 }
