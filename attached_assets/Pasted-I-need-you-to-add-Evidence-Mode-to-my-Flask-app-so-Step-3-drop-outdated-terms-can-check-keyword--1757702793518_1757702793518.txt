@@ -1,0 +1,173 @@
+I need you to add “Evidence Mode” to my Flask app so Step 3 (drop outdated terms) can check keyword relevance against the web with citations. Use Perplexity Sonar API as the default provider, shallow mode (≈3 results, 3–6 month recency). Keep everything backward-compatible, additive only, and production-ready.
+
+Goals
+Add a Perplexity client (src/utils/perplexity_client.py) with configurable mode (off | fast | deep).
+
+
+Wire Perplexity into Step 3 (drop_outdated_terms) so each decision has evidence with citations.
+
+
+Extend API and audit logs to include evidence_refs.
+
+
+Preserve existing guardrails (dedupe, isolation, completeness).
+
+
+Add acceptance tests runnable from Replit shell.
+
+
+
+Part A — Perplexity Client
+Create src/utils/perplexity_client.py:
+class PerplexityClient:
+    def __init__(self, api_key: str, mode: str = "fast"):
+        self.api_key = api_key
+        self.mode = mode
+    
+    def search_keyword(self, term: str, max_results: int = 3) -> list[dict]:
+        """
+        Call Perplexity Sonar API for live evidence.
+        Returns a list of Evidence dicts:
+        {
+          "provider": "perplexity",
+          "url": "https://example.com",
+          "title": "Article Title",
+          "snippet": "Short excerpt...",
+          "published_date": "2025-07-03",
+          "first_seen_date": "2025-07-05"
+        }
+        """
+If SEARCH_TEST_MODE=true, stub 2 fixed evidence items with deterministic URLs/dates.
+
+
+For live mode:
+
+
+Use POST https://api.perplexity.ai/chat/completions
+
+
+model="sonar-small-online" (shallow, cost-effective)
+
+
+Prompt Perplexity: “Give me up to {max_results} recent web references within last {recency_months} months about {term}, return JSON with url, title, snippet, date.”
+
+
+Parse citations into evidence dicts.
+
+
+
+Part B — Config Helpers
+Edit src/utils/config.py:
+def get_search_mode(): return os.getenv("SEARCH_MODE", "off")   # off|fast|deep
+def get_recency_window(): return int(os.getenv("RECENCY_WINDOW_MONTHS", "6"))
+def get_search_provider(): return os.getenv("SEARCH_PROVIDER", "perplexity")
+def get_perplexity_key(): return os.getenv("PERPLEXITY_API_KEY", "")
+def get_max_results_for_mode(mode): return {"off":0,"fast":3,"deep":6}.get(mode,3)
+Log provider + mode at app startup.
+
+Part C — Service Integration
+Edit src/services/newstrack_service.py inside drop_outdated_terms(...):
+If SEARCH_MODE=="off", keep old logic.
+
+
+Else for each keyword:
+
+
+Call PerplexityClient.search_keyword(term, max_results)
+
+
+Attach evidence list (evidence_refs)
+
+
+Call LLM (or test stub) with schema:
+
+
+{
+  "keyword": "string",
+  "decision": "keep" | "drop",
+  "reason": "short string",
+  "evidence_used": [1,2]
+}
+Bias toward drop if no evidence found in recency window.
+
+
+Run guardrails after evidence decisions.
+
+
+Return structure includes:
+"evidence_refs": {
+  "Santam": [
+    {"url":"...","title":"...","snippet":"...","published_date":"..."}
+  ]
+}
+
+Part D — Routes & Responses
+Edit src/routes/newstrack.py:
+Accept optional POST fields: search_mode, recency_window_months, max_results_per_keyword.
+
+
+Thread through to service.
+
+
+In /api/drop and /api/process-all, include evidence_refs in responses + final_result.
+
+
+Keep old schema intact (additive only).
+
+
+
+Part E — Audit & Manifest
+Edit src/utils/audit.py:
+Log evidence_refs in JSONL entries.
+
+
+Extend manifest.json with:
+
+
+"totals": {
+  "total_keywords_with_evidence": 0,
+  "total_evidence_items": 0,
+  "total_keywords_dropped_with_evidence": 0,
+  "total_keywords_dropped_no_evidence": 0
+},
+"search": {
+  "mode": "fast",
+  "provider": "perplexity",
+  "recency_window_months": 6
+}
+
+Part F — Acceptance Tests (Replit shell)
+# 1. Secrets
+SEARCH_MODE=fast
+SEARCH_PROVIDER=perplexity
+RECENCY_WINDOW_MONTHS=6
+SEARCH_TEST_MODE=false
+PERPLEXITY_API_KEY=sk-...
+
+# 2. Restart, then:
+curl -s $REPLIT_URL/api/healthz
+
+# 3. Run process-all
+curl -s -X POST $REPLIT_URL/api/process-all \
+  -H "Content-Type: application/json" \
+  -d '{"sector":"insurance","company":"TestCorp","keywords":"Santam\nMiWay\nFSCA regulations\nmotor insurance","current_date":"2025-09-12"}'
+
+# Expect:
+# - step3_result has updated/removed terms
+# - evidence_refs present with citations
+# - results/<month>/*.jsonl contains evidence_refs
+# - manifest.json shows new evidence totals
+
+Notes
+Backward compatible: Old endpoints still work with no search.
+
+
+Lightweight: Only adds httpx dependency.
+
+
+Scalable: Change SEARCH_MODE (off/fast/deep) or provider later without code changes.
+
+
+Guardrails intact: Dedup + isolation still enforced after evidence.
+
+
