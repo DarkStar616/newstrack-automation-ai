@@ -304,28 +304,36 @@
       "input_total": 183,
       "output_accounted": 3,
       "timing_ms": 11
+    },
+    "2025-09-12-039": {
+      "timestamp": "2025-09-12T14:27:59.705445",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 2
     }
   },
   "totals": {
-    "total_batches": 38,
-    "total_keywords_processed": 6915,
-    "total_keywords_output": 114,
-    "total_duplicates_dropped": 222,
+    "total_batches": 39,
+    "total_keywords_processed": 6919,
+    "total_keywords_output": 117,
+    "total_duplicates_dropped": 223,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 98
+    "total_timing_ms": 100
   },
   "categories": {
     "industry": {
-      "batches": 28,
-      "keywords": 28
+      "batches": 29,
+      "keywords": 29
     },
     "company": {
-      "batches": 28,
-      "keywords": 28
+      "batches": 29,
+      "keywords": 29
     },
     "regulatory": {
-      "batches": 28,
-      "keywords": 28
+      "batches": 29,
+      "keywords": 29
     }
   }
 }
