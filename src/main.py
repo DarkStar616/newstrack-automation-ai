@@ -34,7 +34,8 @@ def before_request():
     g.request_timestamp = time.time()
     app.config['REQUEST_ID'] = g.request_id
     app.config['REQUEST_TIMESTAMP'] = g.request_timestamp
-    app.current_request_id = g.request_id
+    # Store request_id in config instead of direct assignment
+    app.config['CURRENT_REQUEST_ID'] = g.request_id
     
     # Log request
     app.logger.info(f"Request {g.request_id}: {request.method} {request.path}")

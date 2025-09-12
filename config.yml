@@ -6,7 +6,7 @@ max_retries: 3
 retry_delay_seconds: 2
 
 # API settings
-api_base_url: "http://localhost:3000/api"
+api_base_url: "http://localhost:5000/api"
 timeout_seconds: 300
 
 # Processing settings
