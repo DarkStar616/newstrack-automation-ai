@@ -40,12 +40,20 @@
       "input_total": 1,
       "output_accounted": 3,
       "timing_ms": 1
+    },
+    "2025-09-12-006": {
+      "timestamp": "2025-09-12T14:01:25.141980",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 0
     }
   },
   "totals": {
-    "total_batches": 5,
-    "total_keywords_processed": 10,
-    "total_keywords_output": 15,
+    "total_batches": 6,
+    "total_keywords_processed": 14,
+    "total_keywords_output": 18,
     "total_duplicates_dropped": 0,
     "total_leaks_blocked": 0,
     "total_timing_ms": 10

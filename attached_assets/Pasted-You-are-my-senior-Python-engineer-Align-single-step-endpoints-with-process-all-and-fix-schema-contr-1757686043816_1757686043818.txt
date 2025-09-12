@@ -1,0 +1,71 @@
+You are my senior Python engineer. Align single-step endpoints with process-all and fix schema/contract mismatches. Keep changes minimal and show diffs for approval.
+
+Objectives
+1) Unify request contracts:
+   - All endpoints must accept BOTH:
+     a) { "sector": string, "company": string|"" }    # preferred
+     b) { "company_or_sector": string }               # backward-compatible
+   - For /api/categorize: accept "keywords" as either array OR newline-delimited string.
+   - For /api/expand and /api/drop: accept "categories" as an object with keys industry|company|regulatory (arrays of strings).
+   - Normalize inputs into canonical Python types in the route layer before calling services.
+
+2) Unify response contracts:
+   - /api/categorize → { "categories": {industry,company,regulatory}, "explanations": {...}, "guardrails": {...} }
+   - /api/expand → { "expanded": {industry,company,regulatory}, "notes": "...", "guardrails": {...} }
+   - /api/drop → { "updated": {industry,company,regulatory}, "removed": [ {term, reason} ], "justification": "...", "guardrails": {...} }
+   - /api/process-all → include step1_result, step2_result, step3_result, final_result, guardrails summary, batch_id, success, timing_ms (keep current behavior)
+
+3) Fix /api/categorize 500 error:
+   - Add robust try/except around request parsing and service call.
+   - If LLM_TEST_MODE is true, never initialize real clients.
+   - On error, return { "error": { "code": 4xx/5xx, "message": "..." } } not a stack trace.
+
+4) Backward compatibility layer:
+   - In each route, if "company_or_sector" is present and "sector" is missing, set sector = company_or_sector and company = "".
+   - If "keywords" is a string, split on newlines and trim.
+   - Validate required fields and return 400 with friendly error JSON on missing data.
+
+5) Guardrails counters:
+   - Ensure guardrails run for single-step endpoints too and return "guardrails" with:
+     { "counts": { "input_total", "output_accounted", "duplicates_dropped", "leaks_blocked" },
+       "duplicates_dropped": [...],
+       "leaks_blocked": [...],
+       "completeness_check": { "is_complete": bool, "missing_keywords": [...] } }
+   - In test mode, if duplicates are present in input, increment duplicates_dropped and reflect it in both the response and audit (if written).
+
+6) Manifest aggregation:
+   - Update audit/manifest aggregation to compute per-category keyword totals from the final_result.updated arrays (industry/company/regulatory).
+   - Ensure totals.categories.{industry|company|regulatory}.keywords reflect the actual counts, not zeros.
+
+Acceptance tests to run automatically after patch
+- CURL with sector+company style:
+  curl -s -X POST $REPLIT_URL/api/categorize -H "Content-Type: application/json" -d '{"sector":"insurance","company":"","keywords":["Santam","motor insurance","FSCA regulations","FSCA regulations"]}'
+  → Strict JSON with categories + guardrails and duplicates_dropped > 0.
+
+- CURL with company_or_sector style:
+  curl -s -X POST $REPLIT_URL/api/expand -H "Content-Type: application/json" -d '{ "company_or_sector": "insurance", "categories": { "industry":["motor insurance"], "company":["Santam"], "regulatory":["FSCA regulations"] } }'
+  → Strict JSON with expanded + guardrails.
+
+- CURL for drop:
+  curl -s -X POST $REPLIT_URL/api/drop -H "Content-Type: application/json" -d '{ "sector": "insurance", "company": "", "current_date":"2025-09-12", "categories": { "industry":["motor insurance"], "company":["Santam"], "regulatory":["FSCA regulations"] } }'
+  → Strict JSON with updated, removed, justification, guardrails.
+
+- Re-run process-all:
+  curl -s -X POST $REPLIT_URL/api/process-all -H "Content-Type: application/json" -d '{"sector":"insurance","company":"TestCorp","keywords":"Santam\nmotor insurance\nFSCA regulations\nFSCA regulations\nlife insurance","current_date":"2025-09-12"}'
+  → Success JSON; guardrails counts show duplicates_dropped >= 1.
+
+- Batch run:
+  python run.py --input data/keywords_sample.csv --batch-size 300 --depth off --idempotency-key sample-002
+  → results/YYYY-MM/*.jsonl created and manifest.json updated; manifest categories.{industry|company|regulatory}.keywords show non-zero where appropriate.
+
+Show a concise diff summary for:
+- src/routes/newstrack.py
+- src/services/newstrack_service.py (if touched)
+- src/utils/llm_client.py (only if needed to keep stubs working)
+- src/utils/guardrails.py (only if needed to expose counters)
+- src/utils/audit.py (for manifest category totals)
+Then print:
+- curl healthz and status
+- the three single-step curl responses as JSON
+- the process-all JSON
+- head -n 2 of the latest JSONL and the latest manifest.json
