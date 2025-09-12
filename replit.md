@@ -12,6 +12,9 @@ The Newstrack Keyword Automation System is an enterprise-grade Flask web applica
 - **2025-09-12:** Set up Python 3.11 environment with all required dependencies
 - **2025-09-12:** Configured deployment settings for autoscale production deployment
 - **2025-09-12:** Added Python .gitignore for proper version control
+- **2025-09-12:** **MAJOR FEATURE:** Implemented Evidence Mode for Step 3 with Perplexity Sonar API integration
+- **2025-09-12:** Extended audit system with comprehensive evidence tracking and manifest totals
+- **2025-09-12:** Added configurable search modes (off/test/shallow) with test mode support
 
 ## Project Architecture
 
@@ -24,10 +27,12 @@ The Newstrack Keyword Automation System is an enterprise-grade Flask web applica
 
 ### Key Features
 - Three-step keyword processing: Categorize → Expand → Drop Outdated
+- **Evidence Mode**: Step 3 uses Perplexity Sonar API to validate keyword relevance with real news articles
 - Guardrails system with quality control and validation
-- Comprehensive audit logging
+- Comprehensive audit logging with evidence tracking
 - Web interface for manual processing
 - Batch processing capabilities for large datasets
+- Configurable search modes: off (disabled), test (mock evidence), shallow (recent news only)
 
 ## Technical Configuration
 
@@ -41,6 +46,8 @@ The Newstrack Keyword Automation System is an enterprise-grade Flask web applica
 ### Dependencies
 - Flask ecosystem (Flask, Flask-CORS, Flask-SQLAlchemy)
 - OpenAI API integration for language model processing
+- **Perplexity Sonar API** for Evidence Mode news article search
+- httpx for HTTP client operations
 - SQLAlchemy for database operations
 - PyYAML for configuration management
 
@@ -73,6 +80,23 @@ The Newstrack Keyword Automation System is an enterprise-grade Flask web applica
 - Runs the same Flask application
 - Requires OpenAI API key configuration
 
+## Evidence Mode Configuration
+
+### Search Modes
+- **off**: Evidence gathering disabled (default)
+- **test**: Uses mock evidence for testing (requires SEARCH_TEST_MODE=true)
+- **shallow**: Searches recent news articles via Perplexity Sonar API
+
+### Environment Variables
+- `SEARCH_TEST_MODE=true`: Enables test mode evidence generation
+- `LLM_TEST_MODE=true`: Uses mock LLM responses for testing
+- `PERPLEXITY_API_KEY`: Required for production evidence gathering
+
+### Evidence Tracking
+- Audit logs include complete evidence metrics per batch
+- Manifest tracks evidence totals across all batches
+- API responses include evidence_refs with news article citations
+
 ## Known Issues
 - Minor LSP diagnostics in `run.py` (batch processing script) - does not affect web application
 - Development server warning - resolved in production via WSGI server
@@ -81,7 +105,8 @@ The Newstrack Keyword Automation System is an enterprise-grade Flask web applica
 - None specified yet
 
 ## Next Steps (Optional)
-- Set up OpenAI API key for keyword processing functionality  
+- Set up OpenAI API key for keyword processing functionality
+- **Set up Perplexity API key for Evidence Mode in production**
 - Consider PostgreSQL migration for production if concurrent access needed
 - Add production WSGI server configuration
 - Implement tighter CORS restrictions for production deployment
