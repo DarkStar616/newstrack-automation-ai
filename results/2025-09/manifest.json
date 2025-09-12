@@ -48,15 +48,47 @@
       "input_total": 4,
       "output_accounted": 3,
       "timing_ms": 0
+    },
+    "2025-09-12-007": {
+      "timestamp": "2025-09-12T14:11:26.108762",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 5,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-008": {
+      "timestamp": "2025-09-12T14:11:29.236046",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-12-009": {
+      "timestamp": "2025-09-12T14:11:29.243743",
+      "category": "finance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-010": {
+      "timestamp": "2025-09-12T14:12:59.768679",
+      "category": "technology",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 2
     }
   },
   "totals": {
-    "total_batches": 6,
-    "total_keywords_processed": 14,
-    "total_keywords_output": 18,
+    "total_batches": 10,
+    "total_keywords_processed": 29,
+    "total_keywords_output": 30,
     "total_duplicates_dropped": 0,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 10
+    "total_timing_ms": 17
   },
   "categories": {
     "industry": {

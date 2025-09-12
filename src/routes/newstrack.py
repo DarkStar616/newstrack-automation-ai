@@ -21,50 +21,76 @@ def create_error_response(code: int, message: str) -> tuple:
     }), code
 
 
-def validate_request_data(data: Dict[str, Any], required_fields: List[str]) -> Optional[tuple]:
-    """Validate request data and return error response if invalid."""
+def normalize_request_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize and validate request data with backward compatibility."""
     if not data:
-        return create_error_response(400, "Request body is required")
+        raise ValueError("Request body is required")
     
+    # Backward compatibility: convert company_or_sector to sector+company
+    if 'company_or_sector' in data and 'sector' not in data:
+        data['sector'] = data['company_or_sector']
+        data['company'] = data.get('company', '')
+    
+    # Normalize keywords: handle both string and array formats
+    if 'keywords' in data:
+        if isinstance(data['keywords'], str):
+            data['keywords'] = [kw.strip() for kw in data['keywords'].split('\n') if kw.strip()]
+        elif isinstance(data['keywords'], list):
+            data['keywords'] = [str(kw).strip() for kw in data['keywords'] if str(kw).strip()]
+    
+    # Normalize categories: ensure it's a proper dictionary
+    if 'categories' in data and isinstance(data['categories'], dict):
+        for category in ['industry', 'company', 'regulatory']:
+            if category not in data['categories']:
+                data['categories'][category] = []
+    
+    # Handle date fields - accept both 'date' and 'current_date'
+    if 'current_date' in data and 'date' not in data:
+        data['date'] = data['current_date']
+    
+    return data
+
+
+def validate_required_fields(data: Dict[str, Any], required_fields: List[str]) -> None:
+    """Validate that required fields are present and non-empty."""
     for field in required_fields:
         if field not in data or not data[field]:
-            return create_error_response(400, f"Field '{field}' is required")
-    
-    return None
+            raise ValueError(f"Field '{field}' is required")
 
 
 @newstrack_bp.route('/categorize', methods=['POST'])
 def categorize_keywords():
     """
     Step 1: Categorize keywords into industry, company, and regulatory categories.
+    
+    Accepts:
+    - { "sector": str, "company": str, "keywords": str|array }
+    - { "company_or_sector": str, "keywords": str|array } (backward compatible)
+    
+    Returns: { "categories": {...}, "explanations": {...}, "guardrails": {...} }
     """
     try:
-        data = request.json
-        error_response = validate_request_data(data, ['sector', 'keywords'])
-        if error_response:
-            return error_response
+        data = normalize_request_data(request.json or {})
+        validate_required_fields(data, ['sector', 'keywords'])
         
         sector = data['sector'].strip()
         company = data.get('company', '').strip() or None
-        keywords_text = data['keywords'].strip()
+        keywords = data['keywords']
         
-        # Parse keywords into list
-        keywords = [kw.strip() for kw in keywords_text.split('\n') if kw.strip()]
+        if not keywords:
+            return create_error_response(400, "No valid keywords provided")
         
         # Call service function
         result = do_categorize(sector, company, keywords)
         
         return jsonify({
-            'success': True,
-            'result': {
-                'categories': result['categories'],
-                'explanations': result['explanations']
-            },
-            'categories': result['processed_categories'],  
-            'guardrails': result['guardrails'],
-            'step': 'categorize'
+            'categories': result['categories'],
+            'explanations': result['explanations'],
+            'guardrails': result['guardrails']
         })
         
+    except ValueError as e:
+        return create_error_response(400, str(e))
     except Exception as e:
         current_app.logger.error(f"Categorize error: {str(e)}")
         return create_error_response(500, "Internal server error during categorization")
@@ -74,35 +100,35 @@ def categorize_keywords():
 def expand_categories():
     """
     Step 2: Expand categories with additional relevant keywords.
+    
+    Accepts:
+    - { "sector": str, "company": str, "categories": {industry:[],company:[],regulatory:[]} }
+    - { "company_or_sector": str, "categories": {...} } (backward compatible)
+    
+    Returns: { "expanded": {...}, "notes": "...", "guardrails": {...} }
     """
     try:
-        data = request.json
-        error_response = validate_request_data(data, ['company_or_sector', 'step1_result'])
-        if error_response:
-            return error_response
+        data = normalize_request_data(request.json or {})
+        validate_required_fields(data, ['sector', 'categories'])
         
-        company_or_sector = data['company_or_sector'].strip()
-        step1_result = data['step1_result']
+        sector = data['sector'].strip()
+        company = data.get('company', '').strip() or None
+        categories = data['categories']
         
-        # Validate step1_result structure
-        if 'categories' not in step1_result:
-            return create_error_response(400, "Invalid step1_result: missing 'categories'")
-        
-        categories = step1_result['categories']
-        
-        # Parse company_or_sector into sector and company
-        sector = company_or_sector
-        company = None
+        if not isinstance(categories, dict):
+            return create_error_response(400, "Categories must be an object with industry/company/regulatory keys")
         
         # Call service function
         result = do_expand(sector, company, categories)
         
         return jsonify({
-            'success': True,
-            'result': result,
-            'step': 'expand'
+            'expanded': result['expanded'],
+            'notes': result['notes'],
+            'guardrails': result['guardrails']
         })
         
+    except ValueError as e:
+        return create_error_response(400, str(e))
     except Exception as e:
         current_app.logger.error(f"Expand error: {str(e)}")
         return create_error_response(500, "Internal server error during expansion")
@@ -112,36 +138,37 @@ def expand_categories():
 def drop_old_keywords():
     """
     Step 3: Remove outdated keywords from the expanded list.
+    
+    Accepts:
+    - { "sector": str, "company": str, "date": str, "categories": {industry:[],company:[],regulatory:[]} }
+    - { "company_or_sector": str, "current_date": str, "categories": {...} } (backward compatible)
+    
+    Returns: { "updated": {...}, "removed": [...], "justification": "...", "guardrails": {...} }
     """
     try:
-        data = request.json
-        error_response = validate_request_data(data, ['company_or_sector', 'date', 'step2_result'])
-        if error_response:
-            return error_response
+        data = normalize_request_data(request.json or {})
+        validate_required_fields(data, ['sector', 'date', 'categories'])
         
-        company_or_sector = data['company_or_sector'].strip()
+        sector = data['sector'].strip()
+        company = data.get('company', '').strip() or None
         date = data['date'].strip()
-        step2_result = data['step2_result']
+        categories = data['categories']
         
-        # Validate step2_result structure
-        if 'expanded' not in step2_result:
-            return create_error_response(400, "Invalid step2_result: missing 'expanded'")
-        
-        expanded = step2_result['expanded']
-        
-        # Parse company_or_sector into sector and company
-        sector = company_or_sector
-        company = None
+        if not isinstance(categories, dict):
+            return create_error_response(400, "Categories must be an object with industry/company/regulatory keys")
         
         # Call service function
-        result = do_drop(sector, company, date, expanded)
+        result = do_drop(sector, company, date, categories)
         
         return jsonify({
-            'success': True,
-            'result': result,
-            'step': 'drop'
+            'updated': result['updated'],
+            'removed': result['removed'],
+            'justification': result['justification'],
+            'guardrails': result['guardrails']
         })
         
+    except ValueError as e:
+        return create_error_response(400, str(e))
     except Exception as e:
         current_app.logger.error(f"Drop error: {str(e)}")
         return create_error_response(500, "Internal server error during keyword dropping")
@@ -155,23 +182,13 @@ def process_all_steps():
     """
     start_time = time.time()
     try:
-        data = request.json
-        error_response = validate_request_data(data, ['sector', 'keywords'])
-        if error_response:
-            return error_response
+        data = normalize_request_data(request.json or {})
+        validate_required_fields(data, ['sector', 'keywords'])
         
         sector = data['sector'].strip()
         company = data.get('company', '').strip() or None
-        keywords_input = data['keywords']
-        current_date = data.get('date', data.get('current_date', '2025-09')).strip()
-        
-        # Parse keywords into list (handle both string and array formats)
-        if isinstance(keywords_input, str):
-            keywords = [kw.strip() for kw in keywords_input.split('\n') if kw.strip()]
-        elif isinstance(keywords_input, list):
-            keywords = [str(kw).strip() for kw in keywords_input if str(kw).strip()]
-        else:
-            return create_error_response(400, "Keywords must be a string or array")
+        keywords = data['keywords']
+        current_date = data.get('date', '2025-09').strip()
         
         if not keywords:
             return create_error_response(400, "No valid keywords provided")
@@ -189,6 +206,7 @@ def process_all_steps():
         processing_time_ms = int((time.time() - start_time) * 1000)
         
         # Write audit entry
+        batch_id = None
         try:
             audit_logger = get_audit_logger()
             batch_id = audit_logger.generate_batch_id()
@@ -213,16 +231,25 @@ def process_all_steps():
                 'categories': categorize_result['categories'],
                 'explanations': categorize_result['explanations']
             },
-            'step2_result': expand_result,
-            'step3_result': drop_result,
+            'step2_result': {
+                'expanded': expand_result['expanded'],
+                'notes': expand_result['notes']
+            },
+            'step3_result': {
+                'updated': drop_result['updated'],
+                'removed': drop_result['removed'],
+                'justification': drop_result['justification']
+            },
             'final_result': drop_result,
             'guardrails': categorize_result['guardrails'],
-            'batch_id': batch_id if 'batch_id' in locals() else None,
+            'batch_id': batch_id,
             'timing_ms': processing_time_ms
         }
         
         return jsonify(combined_result)
         
+    except ValueError as e:
+        return create_error_response(400, str(e))
     except Exception as e:
         current_app.logger.error(f"Process-all error: {str(e)}")
         return create_error_response(500, "Internal server error during full processing")

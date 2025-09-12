@@ -79,12 +79,16 @@ class AuditLogger:
         duplicates_dropped = guardrails.get('duplicates_dropped', [])
         counts = guardrails.get('counts', {})
         
+        # Calculate actual output count from final categories
+        actual_output_count = sum(len(cat_list) for cat_list in final_categories.values() if isinstance(cat_list, list))
+        
         # Create audit entry
         audit_entry = {
             "batch_id": batch_id,
             "category": category,
             "step": step,
             "timestamp": datetime.now().isoformat(),
+            "final_categories": final_categories,  # Include for manifest aggregation
             "kept": kept_keywords,
             "added": added_keywords,  # TODO: Track actual additions in expansion step
             "removed": removed_keywords,  # TODO: Track actual removals in drop step
@@ -92,7 +96,7 @@ class AuditLogger:
             "duplicates_dropped": duplicates_dropped,
             "counts": {
                 "input_total": len(input_keywords),
-                "output_accounted": counts.get('output_accounted', 0),
+                "output_accounted": actual_output_count,  # Use actual count from final categories
                 "added": len(added_keywords),
                 "removed": len(removed_keywords),
                 "duplicates_dropped": len(duplicates_dropped),
@@ -169,11 +173,22 @@ class AuditLogger:
         manifest['totals']['total_leaks_blocked'] += counts['leaks_blocked']
         manifest['totals']['total_timing_ms'] += audit_entry['timing_ms']
         
-        # Update category stats
-        category = audit_entry['category']
-        if category in manifest['categories']:
-            manifest['categories'][category]['batches'] += 1
-            manifest['categories'][category]['keywords'] += counts['output_accounted']
+        # Update category stats based on final_categories
+        if 'final_categories' in audit_entry:
+            final_categories = audit_entry['final_categories']
+            if isinstance(final_categories, dict):
+                for cat_type in ['industry', 'company', 'regulatory']:
+                    if cat_type in manifest['categories'] and cat_type in final_categories:
+                        keyword_count = len(final_categories[cat_type]) if isinstance(final_categories[cat_type], list) else 0
+                        if keyword_count > 0:
+                            manifest['categories'][cat_type]['batches'] += 1
+                            manifest['categories'][cat_type]['keywords'] += keyword_count
+        else:
+            # Fallback to old behavior if final_categories not present
+            category = audit_entry['category']
+            if category in manifest['categories']:
+                manifest['categories'][category]['batches'] += 1
+                manifest['categories'][category]['keywords'] += counts['output_accounted']
         
         # Write updated manifest
         try:

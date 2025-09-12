@@ -94,3 +94,10 @@
 2025-09-12 13:41:25,294 - INFO - Processing batch 1 of dataset 1
 2025-09-12 13:41:25,300 - INFO - Batch completed successfully: 1 keywords processed
 2025-09-12 13:41:25,301 - INFO - Batch processing completed: 4 successful, 0 failed
+2025-09-12 14:11:29,221 - INFO - Loaded 2 keyword sets from test_batch_sample.csv
+2025-09-12 14:11:29,222 - INFO - Processing plan: 2 batches, 6 total keywords
+2025-09-12 14:11:29,222 - INFO - Processing batch 0 of dataset 0
+2025-09-12 14:11:29,237 - INFO - Batch completed successfully: 3 keywords processed
+2025-09-12 14:11:29,238 - INFO - Processing batch 0 of dataset 1
+2025-09-12 14:11:29,245 - INFO - Batch completed successfully: 3 keywords processed
+2025-09-12 14:11:29,245 - INFO - Batch processing completed: 2 successful, 0 failed

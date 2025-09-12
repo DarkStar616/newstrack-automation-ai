@@ -100,7 +100,7 @@ def do_expand(sector: str, company: Optional[str], categories: Dict[str, List[st
         categories: Categories from categorize step
         
     Returns:
-        Dictionary with expanded categories
+        Dictionary with expanded categories and guardrails
     """
     company_or_sector = company if company else sector
     
@@ -146,6 +146,16 @@ Do not include any text outside the JSON response."""
         if category not in result['expanded']:
             result['expanded'][category] = categories.get(category, [])
     
+    # Apply guardrails to expanded results
+    all_input_keywords = []
+    for cat_list in categories.values():
+        all_input_keywords.extend(cat_list)
+    
+    guardrails = get_guardrails_engine()
+    guardrails_result = guardrails.apply_all_guardrails(all_input_keywords, result['expanded'])
+    
+    result['guardrails'] = guardrails_result['guardrails']
+    
     return result
 
 
@@ -160,7 +170,7 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
         categories: Categories from expand step
         
     Returns:
-        Dictionary with updated categories and removed keywords
+        Dictionary with updated categories, removed keywords, and guardrails
     """
     company_or_sector = company if company else sector
     
@@ -213,5 +223,15 @@ Do not include any text outside the JSON response."""
             result['updated'][category] = categories.get(category, [])
         if 'removed' not in result:
             result['removed'] = []
+    
+    # Apply guardrails to final results
+    all_input_keywords = []
+    for cat_list in categories.values():
+        all_input_keywords.extend(cat_list)
+    
+    guardrails = get_guardrails_engine()
+    guardrails_result = guardrails.apply_all_guardrails(all_input_keywords, result['updated'])
+    
+    result['guardrails'] = guardrails_result['guardrails']
     
     return result
