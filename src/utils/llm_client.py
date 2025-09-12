@@ -15,12 +15,20 @@ class LLMClient:
     def __init__(self):
         self.provider = current_app.config.get('LLM_PROVIDER', 'openai')
         self.model_name = current_app.config.get('MODEL_NAME', 'gpt-4.1-mini')
+        self.test_mode = os.getenv('LLM_TEST_MODE', 'false').lower() == 'true'
         
-        if self.provider == 'openai':
+        if self.test_mode:
+            # In test mode, don't initialize real clients
+            self.client = None
+        elif self.provider == 'openai':
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key and not self.test_mode:
+                # Only require API key when not in test mode
+                raise ValueError("OPENAI_API_KEY environment variable is required when using OpenAI provider")
             self.client = openai.OpenAI(
-                api_key=os.getenv('OPENAI_API_KEY'),
+                api_key=api_key or "test-key",
                 base_url=os.getenv('OPENAI_API_BASE')
-            )
+            ) if not self.test_mode else None
         elif self.provider == 'claude':
             # Claude client setup - placeholder for now
             self.client = None
@@ -41,7 +49,9 @@ class LLMClient:
         Returns:
             The generated response content as a string
         """
-        if self.provider == 'openai':
+        if self.test_mode:
+            return self._generate_test_response(messages)
+        elif self.provider == 'openai':
             return self._openai_completion(messages, temperature)
         elif self.provider == 'claude':
             return self._claude_completion(messages, temperature)
@@ -67,6 +77,66 @@ class LLMClient:
         # Placeholder implementation for Claude
         # In a real implementation, you would use the Anthropic client library
         raise NotImplementedError("Claude provider not yet implemented")
+    
+    def _generate_test_response(self, messages: List[Dict[str, str]]) -> str:
+        """Generate predictable test responses based on prompt content."""
+        prompt = messages[0]['content'].lower() if messages else ''
+        
+        if 'categorize' in prompt or 'three categories' in prompt:
+            # Categorization response
+            return json.dumps({
+                "categories": {
+                    "industry": ["test-industry-keyword"],
+                    "company": ["test-company-keyword"], 
+                    "regulatory": ["test-regulatory-keyword"]
+                },
+                "explanations": {
+                    "industry": "Test industry terms for validation",
+                    "company": "Test company terms for validation",
+                    "regulatory": "Test regulatory terms for validation"
+                }
+            })
+        
+        elif 'expand' in prompt or 'additional relevant' in prompt:
+            # Expansion response  
+            return json.dumps({
+                "expanded": {
+                    "industry": ["test-industry-keyword", "expanded-industry-term"],
+                    "company": ["test-company-keyword", "expanded-company-term"],
+                    "regulatory": ["test-regulatory-keyword", "expanded-regulatory-term"]
+                },
+                "notes": "Test expansion with predictable additional terms"
+            })
+        
+        elif 'drop' in prompt or 'outdated' in prompt or 'remove' in prompt:
+            # Drop outdated response
+            return json.dumps({
+                "updated": {
+                    "industry": ["test-industry-keyword"],
+                    "company": ["test-company-keyword"],
+                    "regulatory": ["test-regulatory-keyword"]
+                },
+                "removed": [
+                    {"term": "expanded-industry-term", "reason": "Test removal for validation"},
+                    {"term": "expanded-company-term", "reason": "Another test removal"}
+                ],
+                "justification": "Test justification for removing outdated terms"
+            })
+        
+        else:
+            # Default fallback response
+            return json.dumps({
+                "categories": {
+                    "industry": ["fallback-industry"],
+                    "company": ["fallback-company"],
+                    "regulatory": ["fallback-regulatory"]
+                },
+                "explanations": {
+                    "industry": "Fallback response",
+                    "company": "Fallback response", 
+                    "regulatory": "Fallback response"
+                }
+            })
     
     def parse_json_response(self, response: str) -> Dict[str, Any]:
         """

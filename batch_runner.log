@@ -4,3 +4,80 @@
 2025-09-10 09:32:13,520 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:3000/api/process-all
 2025-09-10 09:32:13,520 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:3000/api/process-all
 2025-09-10 09:32:13,520 - INFO - Processing batch 1 of dataset 0
+2025-09-12 13:27:25,634 - INFO - Loaded 2 keyword sets from data/keywords_sample.csv
+2025-09-12 13:27:25,637 - INFO - Processing plan: 24 batches, 6870 total keywords
+2025-09-12 13:27:34,995 - INFO - Loaded 2 keyword sets from data/keywords_sample.csv
+2025-09-12 13:27:34,995 - INFO - Processing plan: 24 batches, 6870 total keywords
+2025-09-12 13:27:34,995 - INFO - Processing batch 0 of dataset 0
+2025-09-12 13:27:35,009 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,009 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,009 - INFO - Processing batch 1 of dataset 0
+2025-09-12 13:27:35,016 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,017 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,017 - INFO - Processing batch 2 of dataset 0
+2025-09-12 13:27:35,045 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,045 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,045 - INFO - Processing batch 3 of dataset 0
+2025-09-12 13:27:35,057 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,057 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,058 - INFO - Processing batch 4 of dataset 0
+2025-09-12 13:27:35,067 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,067 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,068 - INFO - Processing batch 5 of dataset 0
+2025-09-12 13:27:35,084 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,084 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,084 - INFO - Processing batch 6 of dataset 0
+2025-09-12 13:27:35,101 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,102 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,102 - INFO - Processing batch 7 of dataset 0
+2025-09-12 13:27:35,111 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,111 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,111 - INFO - Processing batch 8 of dataset 0
+2025-09-12 13:27:35,129 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,129 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,130 - INFO - Processing batch 9 of dataset 0
+2025-09-12 13:27:35,145 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,145 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,146 - INFO - Processing batch 10 of dataset 0
+2025-09-12 13:27:35,155 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,155 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,156 - INFO - Processing batch 11 of dataset 0
+2025-09-12 13:27:35,167 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,167 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,167 - INFO - Processing batch 12 of dataset 0
+2025-09-12 13:27:35,191 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,191 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,192 - INFO - Processing batch 13 of dataset 0
+2025-09-12 13:27:35,202 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,202 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,203 - INFO - Processing batch 14 of dataset 0
+2025-09-12 13:27:35,218 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,218 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,218 - INFO - Processing batch 15 of dataset 0
+2025-09-12 13:27:35,227 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,228 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,228 - INFO - Processing batch 16 of dataset 0
+2025-09-12 13:27:35,243 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,244 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,244 - INFO - Processing batch 17 of dataset 0
+2025-09-12 13:27:35,275 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,276 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,276 - INFO - Processing batch 18 of dataset 0
+2025-09-12 13:27:35,294 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,294 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,294 - INFO - Processing batch 19 of dataset 0
+2025-09-12 13:27:35,304 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,304 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,304 - INFO - Processing batch 20 of dataset 0
+2025-09-12 13:27:35,315 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,315 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,315 - INFO - Processing batch 0 of dataset 1
+2025-09-12 13:27:35,331 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,331 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,331 - INFO - Processing batch 1 of dataset 1
+2025-09-12 13:27:35,381 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,381 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,381 - INFO - Processing batch 2 of dataset 1
+2025-09-12 13:27:35,391 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,391 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
+2025-09-12 13:27:35,391 - INFO - Batch processing completed: 0 successful, 24 failed

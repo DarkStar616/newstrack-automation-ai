@@ -125,11 +125,28 @@ Do not include any text outside the JSON response."""
             if category not in result['explanations']:
                 result['explanations'][category] = ""
         
-        return jsonify({
-            'success': True,
-            'result': result,
-            'step': 'categorize'
-        })
+        # Apply guardrails for duplicate detection
+        try:
+            from src.utils.guardrails import get_guardrails_engine
+            guardrails = get_guardrails_engine()
+            input_keywords = [kw.strip() for kw in keywords.split('\n') if kw.strip()]
+            guardrails_result = guardrails.apply_all_guardrails(input_keywords, result['categories'])
+            
+            return jsonify({
+                'success': True,
+                'result': result,
+                'categories': guardrails_result['categories'],  # Include guardrails-processed categories
+                'guardrails': guardrails_result['guardrails'],
+                'step': 'categorize'
+            })
+        except Exception as e:
+            current_app.logger.warning(f"Guardrails processing failed: {e}")
+            # Fallback to original result without guardrails
+            return jsonify({
+                'success': True,
+                'result': result,
+                'step': 'categorize'
+            })
         
     except Exception as e:
         current_app.logger.error(f"Categorize error: {str(e)}")
@@ -367,9 +384,9 @@ def process_all_steps():
         # Simulate internal call to categorize
         with current_app.test_request_context(json=step1_data, method='POST'):
             step1_response = categorize_keywords()
-            if step1_response[1] != 200:  # Check status code
+            if isinstance(step1_response, tuple) and step1_response[1] != 200:  # Check status code
                 return step1_response
-            step1_result = step1_response[0].get_json()['result']
+            step1_result = step1_response.get_json()['result'] if hasattr(step1_response, 'get_json') else step1_response[0].get_json()['result']
         
         # Step 2: Expand
         step2_data = {
@@ -379,9 +396,9 @@ def process_all_steps():
         
         with current_app.test_request_context(json=step2_data, method='POST'):
             step2_response = expand_categories()
-            if step2_response[1] != 200:
+            if isinstance(step2_response, tuple) and step2_response[1] != 200:
                 return step2_response
-            step2_result = step2_response[0].get_json()['result']
+            step2_result = step2_response.get_json()['result'] if hasattr(step2_response, 'get_json') else step2_response[0].get_json()['result']
         
         # Step 3: Drop
         step3_data = {
@@ -392,9 +409,9 @@ def process_all_steps():
         
         with current_app.test_request_context(json=step3_data, method='POST'):
             step3_response = drop_old_keywords()
-            if step3_response[1] != 200:
+            if isinstance(step3_response, tuple) and step3_response[1] != 200:
                 return step3_response
-            step3_result = step3_response[0].get_json()['result']
+            step3_result = step3_response.get_json()['result'] if hasattr(step3_response, 'get_json') else step3_response[0].get_json()['result']
         
         return jsonify({
             'success': True,
