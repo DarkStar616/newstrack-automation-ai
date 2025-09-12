@@ -2,6 +2,7 @@
 Pure service functions for newstrack keyword processing.
 These functions contain core business logic without Flask dependencies.
 """
+import os
 import json
 from typing import Dict, List, Optional, Any
 from src.utils.llm_client import get_llm_client
@@ -183,6 +184,9 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
     
     # Initialize search configuration
     search_mode = search_mode or get_search_mode()
+    # Force search mode in test mode for evidence gathering
+    if os.getenv("SEARCH_TEST_MODE", "false").lower() == "true" and search_mode == "off":
+        search_mode = "fast"
     recency_window_months = recency_window_months or get_recency_window()
     max_results_per_keyword = max_results_per_keyword or get_max_results_for_mode(search_mode)
     
@@ -192,8 +196,9 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
     
     if search_mode != "off":
         perplexity_key = get_perplexity_key()
-        if perplexity_key:
-            perplexity_client = PerplexityClient(perplexity_key, search_mode)
+        # In test mode, allow empty API key for stub evidence
+        if perplexity_key or os.getenv("SEARCH_TEST_MODE", "false").lower() == "true":
+            perplexity_client = PerplexityClient(perplexity_key or "test_key", search_mode)
     
     # Gather evidence for each keyword
     all_keywords = []

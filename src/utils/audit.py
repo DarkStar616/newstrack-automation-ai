@@ -178,7 +178,18 @@ class AuditLogger:
         if os.path.exists(manifest_file):
             try:
                 with open(manifest_file, 'r', encoding='utf-8') as f:
-                    manifest = json.load(f)
+                    loaded_manifest = json.load(f)
+                    # Merge with default structure to ensure all fields exist
+                    manifest.update(loaded_manifest)
+                    # Ensure evidence fields exist in totals
+                    if 'total_keywords_with_evidence' not in manifest['totals']:
+                        manifest['totals']['total_keywords_with_evidence'] = 0
+                    if 'total_evidence_items' not in manifest['totals']:
+                        manifest['totals']['total_evidence_items'] = 0
+                    if 'total_keywords_dropped_with_evidence' not in manifest['totals']:
+                        manifest['totals']['total_keywords_dropped_with_evidence'] = 0
+                    if 'total_keywords_dropped_no_evidence' not in manifest['totals']:
+                        manifest['totals']['total_keywords_dropped_no_evidence'] = 0
             except Exception as e:
                 current_app.logger.warning(f"Failed to load existing manifest, creating new one: {e}")
         

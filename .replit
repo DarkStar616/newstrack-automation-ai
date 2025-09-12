@@ -4,7 +4,7 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
-packages = ["cacert", "cargo", "glibcLocales", "libiconv", "libxcrypt", "libyaml", "rustc", "jq"]
+packages = ["cacert", "cargo", "glibcLocales", "jq", "libiconv", "libxcrypt", "libyaml", "rustc"]
 
 [workflows]
 runButton = "Project"
@@ -27,16 +27,12 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "LLM_TEST_MODE=true python run_app.py"
+args = "LLM_TEST_MODE=true SEARCH_TEST_MODE=true python run_app.py"
 waitForPort = 5000
 
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 38681
-externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"

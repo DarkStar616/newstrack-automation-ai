@@ -360,28 +360,53 @@
       "input_total": 4,
       "output_accounted": 3,
       "timing_ms": 3
+    },
+    "2025-09-12-046": {
+      "timestamp": "2025-09-12T18:55:11.520088",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-048": {
+      "timestamp": "2025-09-12T19:01:01.220977",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 1
     }
   },
   "totals": {
-    "total_batches": 45,
-    "total_keywords_processed": 6949,
-    "total_keywords_output": 135,
+    "total_batches": 47,
+    "total_keywords_processed": 6954,
+    "total_keywords_output": 141,
     "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 112
+    "total_timing_ms": 114,
+    "total_keywords_with_evidence": 6,
+    "total_evidence_items": 12,
+    "total_keywords_dropped_with_evidence": 0,
+    "total_keywords_dropped_no_evidence": 0
   },
   "categories": {
     "industry": {
-      "batches": 35,
-      "keywords": 35
+      "batches": 37,
+      "keywords": 37
     },
     "company": {
-      "batches": 35,
-      "keywords": 35
+      "batches": 37,
+      "keywords": 37
     },
     "regulatory": {
-      "batches": 35,
-      "keywords": 35
+      "batches": 37,
+      "keywords": 37
     }
+  },
+  "search": {
+    "mode": "off",
+    "provider": "perplexity",
+    "recency_window_months": 6
   }
 }
