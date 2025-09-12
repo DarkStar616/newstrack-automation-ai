@@ -220,8 +220,13 @@ def drop_old_keywords():
         if not isinstance(categories, dict):
             return create_error_response(400, "Categories must be an object with industry/company/regulatory keys")
         
-        # Call service function
-        result = do_drop(sector, company, date, categories)
+        # Extract optional search parameters
+        search_mode = data.get('search_mode')
+        recency_window_months = data.get('recency_window_months')
+        max_results_per_keyword = data.get('max_results_per_keyword')
+        
+        # Call service function with search parameters
+        result = do_drop(sector, company, date, categories, search_mode, recency_window_months, max_results_per_keyword)
         
         # Apply isolation before final result
         cleaned_updated, leaks_blocked = enforce_isolation(result['updated'])
@@ -237,6 +242,7 @@ def drop_old_keywords():
             'updated': result['updated'],
             'removed': result['removed'],
             'justification': result['justification'],
+            'evidence_refs': result.get('evidence_refs', {}),
             'guardrails': result['guardrails']
         })
         
@@ -263,6 +269,11 @@ def process_all_steps():
         raw_keywords = data['keywords']
         current_date = data.get('date', '2025-09').strip()
         
+        # Extract optional search parameters
+        search_mode = data.get('search_mode')
+        recency_window_months = data.get('recency_window_months')
+        max_results_per_keyword = data.get('max_results_per_keyword')
+        
         # Normalize and deduplicate keywords
         normalized_keywords = normalize_keywords(raw_keywords)
         if not normalized_keywords:
@@ -284,8 +295,9 @@ def process_all_steps():
         # Step 2: Expand using the processed categories from guardrails
         expand_result = do_expand(sector, company, categorize_result['processed_categories'])
         
-        # Step 3: Drop using expanded categories
-        drop_result = do_drop(sector, company, current_date, expand_result['expanded'])
+        # Step 3: Drop using expanded categories with search parameters
+        drop_result = do_drop(sector, company, current_date, expand_result['expanded'], 
+                             search_mode, recency_window_months, max_results_per_keyword)
         
         # Apply final isolation before committing final_result
         final_cleaned, final_leaks_blocked = enforce_isolation(drop_result['updated'])
@@ -313,7 +325,8 @@ def process_all_steps():
                 final_categories=drop_result['updated'],
                 guardrails_result=categorize_result,  # Contains guardrails data with duplicates
                 timing_ms=processing_time_ms,
-                step='process-all'
+                step='process-all',
+                evidence_refs=drop_result.get('evidence_refs', {})
             )
             
         except Exception as e:
@@ -333,7 +346,8 @@ def process_all_steps():
             'step3_result': {
                 'updated': drop_result['updated'],
                 'removed': drop_result['removed'],
-                'justification': drop_result['justification']
+                'justification': drop_result['justification'],
+                'evidence_refs': drop_result.get('evidence_refs', {})
             },
             'final_result': drop_result,
             'guardrails': categorize_result['guardrails'],

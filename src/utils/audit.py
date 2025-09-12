@@ -52,7 +52,8 @@ class AuditLogger:
                          final_categories: Dict[str, List[str]],
                          guardrails_result: Dict[str, Any],
                          timing_ms: int,
-                         step: str = 'process-all') -> str:
+                         step: str = 'process-all',
+                         evidence_refs: Optional[Dict[str, List[Dict]]] = None) -> str:
         """
         Write a batch audit entry to JSONL file.
         
@@ -79,6 +80,20 @@ class AuditLogger:
         duplicates_dropped = guardrails.get('duplicates_dropped', [])
         counts = guardrails.get('counts', {})
         
+        # Calculate evidence statistics
+        evidence_refs = evidence_refs or {}
+        total_keywords_with_evidence = len(evidence_refs)
+        total_evidence_items = sum(len(evidence_list) for evidence_list in evidence_refs.values())
+        keywords_dropped_with_evidence = 0
+        keywords_dropped_no_evidence = 0
+        
+        # Count dropped keywords with/without evidence
+        for keyword in removed_keywords:  # This will be populated when we track actual removals
+            if keyword in evidence_refs and evidence_refs[keyword]:
+                keywords_dropped_with_evidence += 1
+            else:
+                keywords_dropped_no_evidence += 1
+        
         # Calculate actual output count from final categories
         actual_output_count = sum(len(cat_list) for cat_list in final_categories.values() if isinstance(cat_list, list))
         
@@ -94,13 +109,18 @@ class AuditLogger:
             "removed": removed_keywords,  # TODO: Track actual removals in drop step
             "leaks_blocked": leaks_blocked,
             "duplicates_dropped": duplicates_dropped,
+            "evidence_refs": evidence_refs,  # Include evidence references
             "counts": {
                 "input_total": len(input_keywords),
                 "output_accounted": actual_output_count,  # Use actual count from final categories
                 "added": len(added_keywords),
                 "removed": len(removed_keywords),
                 "duplicates_dropped": len(duplicates_dropped),
-                "leaks_blocked": len(leaks_blocked)
+                "leaks_blocked": len(leaks_blocked),
+                "keywords_with_evidence": total_keywords_with_evidence,
+                "evidence_items": total_evidence_items,
+                "keywords_dropped_with_evidence": keywords_dropped_with_evidence,
+                "keywords_dropped_no_evidence": keywords_dropped_no_evidence
             },
             "timing_ms": timing_ms
         }
@@ -137,12 +157,21 @@ class AuditLogger:
                 "total_keywords_output": 0,
                 "total_duplicates_dropped": 0,
                 "total_leaks_blocked": 0,
-                "total_timing_ms": 0
+                "total_timing_ms": 0,
+                "total_keywords_with_evidence": 0,
+                "total_evidence_items": 0,
+                "total_keywords_dropped_with_evidence": 0,
+                "total_keywords_dropped_no_evidence": 0
             },
             "categories": {
                 "industry": {"batches": 0, "keywords": 0},
                 "company": {"batches": 0, "keywords": 0},
                 "regulatory": {"batches": 0, "keywords": 0}
+            },
+            "search": {
+                "mode": "off",
+                "provider": "perplexity",
+                "recency_window_months": 6
             }
         }
         
@@ -172,6 +201,10 @@ class AuditLogger:
         manifest['totals']['total_duplicates_dropped'] += counts['duplicates_dropped']
         manifest['totals']['total_leaks_blocked'] += counts['leaks_blocked']
         manifest['totals']['total_timing_ms'] += audit_entry['timing_ms']
+        manifest['totals']['total_keywords_with_evidence'] += counts.get('keywords_with_evidence', 0)
+        manifest['totals']['total_evidence_items'] += counts.get('evidence_items', 0)
+        manifest['totals']['total_keywords_dropped_with_evidence'] += counts.get('keywords_dropped_with_evidence', 0)
+        manifest['totals']['total_keywords_dropped_no_evidence'] += counts.get('keywords_dropped_no_evidence', 0)
         
         # Update category stats based on final_categories
         if 'final_categories' in audit_entry:

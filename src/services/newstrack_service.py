@@ -6,6 +6,8 @@ import json
 from typing import Dict, List, Optional, Any
 from src.utils.llm_client import get_llm_client
 from src.utils.guardrails import get_guardrails_engine
+from src.utils.perplexity_client import PerplexityClient
+from src.utils.config import get_search_mode, get_perplexity_key, get_recency_window, get_max_results_for_mode
 
 
 def do_categorize(sector: str, company: Optional[str], keywords: List[str]) -> Dict[str, Any]:
@@ -159,23 +161,59 @@ Do not include any text outside the JSON response."""
     return result
 
 
-def do_drop(sector: str, company: Optional[str], current_date: str, categories: Dict[str, List[str]]) -> Dict[str, Any]:
+def do_drop(sector: str, company: Optional[str], current_date: str, categories: Dict[str, List[str]], 
+            search_mode: Optional[str] = None, recency_window_months: Optional[int] = None, 
+            max_results_per_keyword: Optional[int] = None) -> Dict[str, Any]:
     """
-    Remove outdated keywords from the expanded list.
+    Remove outdated keywords from the expanded list with optional evidence validation.
     
     Args:
         sector: The sector/industry context
         company: Optional company name  
         current_date: Current date for currency validation
         categories: Categories from expand step
+        search_mode: Optional search mode ("off", "fast", "deep")
+        recency_window_months: Optional recency window in months
+        max_results_per_keyword: Optional max evidence results per keyword
         
     Returns:
-        Dictionary with updated categories, removed keywords, and guardrails
+        Dictionary with updated categories, removed keywords, evidence_refs, and guardrails
     """
     company_or_sector = company if company else sector
     
-    # Create prompt for dropping outdated keywords
-    prompt = f"""You are a keyword currency expert. Review the keyword list and remove any terms that may be outdated as of {current_date} for {company_or_sector}.
+    # Initialize search configuration
+    search_mode = search_mode or get_search_mode()
+    recency_window_months = recency_window_months or get_recency_window()
+    max_results_per_keyword = max_results_per_keyword or get_max_results_for_mode(search_mode)
+    
+    # Initialize Perplexity client for evidence gathering
+    evidence_refs = {}
+    perplexity_client = None
+    
+    if search_mode != "off":
+        perplexity_key = get_perplexity_key()
+        if perplexity_key:
+            perplexity_client = PerplexityClient(perplexity_key, search_mode)
+    
+    # Gather evidence for each keyword
+    all_keywords = []
+    for category_keywords in categories.values():
+        all_keywords.extend(category_keywords)
+    
+    for keyword in all_keywords:
+        if perplexity_client:
+            evidence = perplexity_client.search_keyword(
+                keyword, 
+                max_results=max_results_per_keyword,
+                recency_months=recency_window_months
+            )
+            if evidence:
+                evidence_refs[keyword] = evidence
+    
+    # Create evidence-enhanced prompt for dropping outdated keywords
+    if search_mode == "off":
+        # Original prompt without evidence
+        prompt = f"""You are a keyword currency expert. Review the keyword list and remove any terms that may be outdated as of {current_date} for {company_or_sector}.
 
 CURRENT KEYWORDS:
 {json.dumps(categories, indent=2)}
@@ -201,6 +239,52 @@ Return ONLY valid JSON in this exact format:
         {{"term": "another_keyword", "reason": "another specific reason"}}
     ],
     "justification": "Brief explanation of removal criteria and date considerations"
+}}
+
+Do not include any text outside the JSON response."""
+    else:
+        # Evidence-enhanced prompt
+        evidence_summary = ""
+        if evidence_refs:
+            evidence_summary = "\nEVIDENCE GATHERED:\n"
+            for keyword, evidence_list in evidence_refs.items():
+                evidence_summary += f"\n{keyword}:\n"
+                if evidence_list:
+                    for i, evidence in enumerate(evidence_list[:3], 1):  # Limit to 3 per keyword
+                        evidence_summary += f"  {i}. {evidence['title']} ({evidence['published_date']})\n"
+                        evidence_summary += f"     {evidence['snippet'][:100]}...\n"
+                else:
+                    evidence_summary += "  No recent evidence found\n"
+        
+        prompt = f"""You are a keyword currency expert with access to recent web evidence. Review the keyword list and remove any terms that may be outdated as of {current_date} for {company_or_sector}.
+
+CURRENT KEYWORDS:
+{json.dumps(categories, indent=2)}
+
+CURRENT DATE: {current_date}
+
+{evidence_summary}
+
+INSTRUCTIONS:
+1. Use the evidence above to assess keyword relevance and currency
+2. If no recent evidence is found for a keyword within {recency_window_months} months, consider removing it
+3. Keep keywords with recent, relevant evidence
+4. Consider company mergers, rebrands, regulatory changes, market exits
+5. Provide specific reasons for each removal, referencing evidence when available
+
+Return ONLY valid JSON in this exact format:
+
+{{
+    "updated": {{
+        "industry": ["remaining current terms"],
+        "company": ["remaining current terms"],
+        "regulatory": ["remaining current terms"]
+    }},
+    "removed": [
+        {{"term": "outdated_keyword", "reason": "specific reason for removal", "evidence_used": [1, 2]}},
+        {{"term": "another_keyword", "reason": "another specific reason", "evidence_used": []}}
+    ],
+    "justification": "Brief explanation of removal criteria considering both evidence and date"
 }}
 
 Do not include any text outside the JSON response."""
@@ -233,5 +317,6 @@ Do not include any text outside the JSON response."""
     guardrails_result = guardrails.apply_all_guardrails(all_input_keywords, result['updated'])
     
     result['guardrails'] = guardrails_result['guardrails']
+    result['evidence_refs'] = evidence_refs
     
     return result

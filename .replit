@@ -4,7 +4,7 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
-packages = ["cacert", "cargo", "glibcLocales", "libiconv", "libxcrypt", "libyaml", "rustc"]
+packages = ["cacert", "cargo", "glibcLocales", "libiconv", "libxcrypt", "libyaml", "rustc", "jq"]
 
 [workflows]
 runButton = "Project"
