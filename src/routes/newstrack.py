@@ -4,9 +4,11 @@ Newstrack keyword processing routes with strict JSON schemas and guardrails.
 from flask import Blueprint, request, jsonify, current_app
 import json
 import time
+import os
 from typing import Dict, List, Any, Optional, Tuple
 from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
+from src.utils.guardrails import enforce_isolation, load_guards
 
 newstrack_bp = Blueprint('newstrack', __name__)
 
@@ -119,11 +121,19 @@ def categorize_keywords():
         # Call service function with unique keywords
         result = do_categorize(sector, company, unique_keywords)
         
-        # Merge duplicate tracking into guardrails
+        # Apply isolation after service
+        cleaned_categories, leaks_blocked = enforce_isolation(result['categories'])
+        result['categories'] = cleaned_categories
+        
+        # Merge duplicate tracking and isolation into guardrails
         result['guardrails']['counts']['input_total'] = len(normalized_keywords)
         result['guardrails']['counts']['duplicates_dropped'] += dedupe_result['duplicates_dropped_count']
+        result['guardrails']['counts']['leaks_blocked'] += len(leaks_blocked)
         result['guardrails']['duplicates_dropped'] = sorted(set(
             result['guardrails']['duplicates_dropped'] + dedupe_result['duplicates_dropped_list']
+        ))
+        result['guardrails']['leaks_blocked'] = sorted(set(
+            result['guardrails']['leaks_blocked'] + leaks_blocked
         ))
         
         return jsonify({
@@ -164,6 +174,16 @@ def expand_categories():
         # Call service function
         result = do_expand(sector, company, categories)
         
+        # Apply isolation after service
+        cleaned_expanded, leaks_blocked = enforce_isolation(result['expanded'])
+        result['expanded'] = cleaned_expanded
+        
+        # Update guardrails with isolation results
+        result['guardrails']['counts']['leaks_blocked'] += len(leaks_blocked)
+        result['guardrails']['leaks_blocked'] = sorted(set(
+            result['guardrails']['leaks_blocked'] + leaks_blocked
+        ))
+        
         return jsonify({
             'expanded': result['expanded'],
             'notes': result['notes'],
@@ -202,6 +222,16 @@ def drop_old_keywords():
         
         # Call service function
         result = do_drop(sector, company, date, categories)
+        
+        # Apply isolation before final result
+        cleaned_updated, leaks_blocked = enforce_isolation(result['updated'])
+        result['updated'] = cleaned_updated
+        
+        # Update guardrails with isolation results
+        result['guardrails']['counts']['leaks_blocked'] += len(leaks_blocked)
+        result['guardrails']['leaks_blocked'] = sorted(set(
+            result['guardrails']['leaks_blocked'] + leaks_blocked
+        ))
         
         return jsonify({
             'updated': result['updated'],
@@ -256,6 +286,16 @@ def process_all_steps():
         
         # Step 3: Drop using expanded categories
         drop_result = do_drop(sector, company, current_date, expand_result['expanded'])
+        
+        # Apply final isolation before committing final_result
+        final_cleaned, final_leaks_blocked = enforce_isolation(drop_result['updated'])
+        drop_result['updated'] = final_cleaned
+        
+        # Update TOP-LEVEL guardrails with final isolation results
+        categorize_result['guardrails']['counts']['leaks_blocked'] += len(final_leaks_blocked)
+        categorize_result['guardrails']['leaks_blocked'] = sorted(set(
+            categorize_result['guardrails']['leaks_blocked'] + final_leaks_blocked
+        ))
         
         # Calculate processing time
         processing_time_ms = int((time.time() - start_time) * 1000)
@@ -316,6 +356,38 @@ def process_all_steps():
 def health_check():
     """Health check endpoint."""
     return jsonify({"ok": True})
+
+
+@newstrack_bp.route('/guards', methods=['GET'])
+def get_guards_info():
+    """
+    Debug endpoint to show guard set information.
+    Only available when DEBUG=true or LLM_TEST_MODE=true.
+    """
+    debug_mode = os.getenv('DEBUG', 'false').lower() == 'true'
+    test_mode = os.getenv('LLM_TEST_MODE', 'false').lower() == 'true'
+    
+    if not (debug_mode or test_mode):
+        return create_error_response(404, "Not found")
+    
+    try:
+        guards = load_guards()
+        
+        sample = {}
+        for category, guard_set in guards.items():
+            # Get first 5 terms from each set
+            sample[category] = sorted(list(guard_set))[:5]
+        
+        return jsonify({
+            'industry_count': len(guards.get('industry', set())),
+            'company_count': len(guards.get('company', set())),
+            'regulatory_count': len(guards.get('regulatory', set())),
+            'sample': sample
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Guards info error: {str(e)}")
+        return create_error_response(500, "Failed to retrieve guard information")
 
 
 @newstrack_bp.route('/status', methods=['GET'])

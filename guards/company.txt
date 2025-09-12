@@ -1,48 +1,10 @@
-# Company keywords - specific company names, brands, organizations
-# Insurance companies
-santam
-old mutual
-discovery
-outsurance
-king price
-miway
-hollard
-liberty
-momentum
-guardrisk
-# Banks
-standard bank
-fnb
-absa
-nedbank
-capitec
-investec
-# Technology companies
-microsoft
-google
-apple
-amazon
-meta
-tesla
-nvidia
-# General company indicators
-ltd
-limited
-inc
-incorporated
-corp
-corporation
-group
-holdings
-ventures
-partners
-associates
-solutions
-services
-systems
-technologies
-enterprises
-international
-global
-worldwide
-
+Santam
+MiWay
+Old Mutual Insure
+Outsurance
+Discovery Insure
+King Price
+Hollard
+Liberty
+Momentum Insure
+Guardrisk

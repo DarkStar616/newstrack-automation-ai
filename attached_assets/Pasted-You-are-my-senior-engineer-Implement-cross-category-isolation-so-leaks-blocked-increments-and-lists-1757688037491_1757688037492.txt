@@ -1,0 +1,72 @@
+You are my senior engineer. Implement cross-category isolation so leaks_blocked increments and lists leaked terms. Minimal, surgical changes; show concise diffs.
+
+Context
+- JSONL entries now include "final_categories".
+- leaks_blocked is always 0 → isolation not wired at merge points or guards not loaded/normalized.
+- We want isolation to run after step1/step2 and again before final_result is committed.
+
+Tasks
+
+1) Guard loader
+- Add a loader in src/utils/guardrails.py:
+    load_guards(guards_dir=os.getenv("GUARDS_DIR", "guards")) -> dict[str, set[str]]
+  Behavior:
+    * Read company.txt, regulatory.txt, industry.txt if present.
+    * Normalize: strip, lower, drop blanks.
+    * Cache in module-level var on first call.
+    * If os.getenv("GUARDS_HOT_RELOAD") == "true", reload on each call.
+
+2) Isolation function
+- In src/utils/guardrails.py add:
+    def enforce_isolation(categories: dict) -> tuple[dict, list[str]]:
+      * Input: {"industry":[...], "company":[...], "regulatory":[...]} (strings)
+      * Normalize items to lower for matching; preserve original spellings when returning lists if feasible.
+      * For each bucket K, remove items that appear in ANY OTHER guard set (not K’s own set).
+      * Return: (cleaned_categories, leaks_blocked_list)
+
+  Example: If "FSCA regulations" appears under company, but "FSCA regulations" is in the regulatory guard set, it is removed from company and added to leaks_blocked_list.
+
+3) Wire it into routes
+- src/routes/newstrack.py:
+  a) /api/categorize:
+     - After service computes categories, call enforce_isolation.
+     - Replace categories with cleaned.
+     - Update guardrails:
+         counts.leaks_blocked += len(leaks_blocked_list)
+         guardrails.leaks_blocked = sorted(unique union)
+  b) /api/expand and /api/drop: apply the same pattern before returning (keeps single-step endpoints consistent).
+  c) /api/process-all:
+     - After step1_result and step2_result, but before final_result is set:
+       * call enforce_isolation on the merged categories that will become final_result.updated
+       * replace final_result.updated with cleaned
+       * increment TOP-LEVEL guardrails counts and lists as above.
+
+4) Audit + manifest
+- src/utils/audit.py:
+  - Ensure each JSONL includes "leaks_blocked": [...], and counts.leaks_blocked includes the increment from isolation.
+  - Ensure manifest.totals.total_leaks_blocked sums those counts across batches.
+
+5) Debug route
+- In src/routes/newstrack.py add GET /api/guards (only if DEBUG=true or LLM_TEST_MODE=true):
+  returns {"industry_count": N, "company_count": M, "regulatory_count": R, "sample": {...}} for quick validation.
+  Do not return file contents, just counts and first 5 terms from each set.
+
+Acceptance (run these after patch):
+A) curl -s $BASE/api/guards → counts > 0 for all three guard sets.
+B) curl -s -X POST $BASE/api/process-all -d '{
+     "sector":"insurance","company":"TestCorp",
+     "keywords":"Santam\nMiWay\nFSCA regulations\nFAIS\nmotor insurance\nvehicle insurance",
+     "current_date":"2025-09-12"
+   }' | jq
+   Expect guardrails.counts.leaks_blocked >= 1 and guardrails.leaks_blocked contains ["FSCA regulations","FAIS"] if they attempted to leak into non-regulatory buckets.
+C) latest=$(ls -1d results/* | tail -n1); tail -n 1 $latest/*.jsonl
+   Must contain "leaks_blocked": [ ... ] not empty.
+D) cat $latest/manifest.json
+   totals.total_leaks_blocked > 0.
+
+Show diffs for:
+- src/utils/guardrails.py
+- src/routes/newstrack.py
+- src/utils/audit.py
+
+If any place already has partial isolation logic, consolidate to the single enforce_isolation() to avoid drift.

@@ -10,6 +10,81 @@ from typing import Dict, List, Set, Tuple, Any
 from flask import current_app
 
 
+# Module-level cache for guard sets
+_guard_cache = None
+
+
+def load_guards(guards_dir: str = None) -> Dict[str, Set[str]]:
+    """Load category guard sets with optional caching and hot reload."""
+    global _guard_cache
+    
+    if guards_dir is None:
+        guards_dir = os.getenv("GUARDS_DIR", "guards")
+    
+    # Check if we should reload
+    hot_reload = os.getenv("GUARDS_HOT_RELOAD", "false").lower() == "true"
+    
+    if not hot_reload and _guard_cache is not None:
+        return _guard_cache
+    
+    guards = {}
+    categories = ['industry', 'company', 'regulatory']
+    
+    for category in categories:
+        guard_file = os.path.join(guards_dir, f'{category}.txt')
+        keywords = set()
+        
+        if os.path.exists(guard_file):
+            try:
+                with open(guard_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip().lower()  # Normalize: strip, lower
+                        if line and not line.startswith('#'):  # Drop blanks and comments
+                            keywords.add(line)
+            except Exception as e:
+                if current_app:
+                    current_app.logger.warning(f"Failed to load guard file {guard_file}: {e}")
+        
+        guards[category] = keywords
+    
+    _guard_cache = guards
+    return guards
+
+
+def enforce_isolation(categories: Dict[str, List[str]]) -> Tuple[Dict[str, List[str]], List[str]]:
+    """Enforce cross-category isolation by removing leaked terms.
+    
+    Args:
+        categories: Dict with industry/company/regulatory keyword lists
+        
+    Returns:
+        Tuple of (cleaned_categories, leaks_blocked_list)
+    """
+    guard_sets = load_guards()
+    cleaned = {k: [] for k in categories.keys()}
+    leaks_blocked = []
+    
+    for category, keywords in categories.items():
+        current_guard_set = guard_sets.get(category, set())
+        
+        for keyword in keywords:
+            normalized = keyword.lower().strip()
+            is_leaked = False
+            
+            # Check if this keyword appears in ANY OTHER guard set
+            for other_category, other_guard_set in guard_sets.items():
+                if other_category != category and normalized in other_guard_set:
+                    # This is a leak - keyword belongs in other_category but is in current category
+                    leaks_blocked.append(keyword)
+                    is_leaked = True
+                    break
+            
+            if not is_leaked:
+                cleaned[category].append(keyword)
+    
+    return cleaned, leaks_blocked
+
+
 class GuardrailsEngine:
     """Engine for applying guardrails to keyword processing results."""
     
@@ -82,30 +157,12 @@ class GuardrailsEngine:
     
     def apply_category_isolation(self, categories: Dict[str, List[str]]) -> Tuple[Dict[str, List[str]], List[str]]:
         """
-        Apply category isolation guardrails.
-        Move keywords to correct categories and track violations.
+        Apply category isolation guardrails using the module-level enforce_isolation function.
         
         Returns:
-            Tuple of (corrected_categories, leaks_blocked)
+            Tuple of (cleaned_categories, leaks_blocked)
         """
-        corrected = {cat: [] for cat in categories.keys()}
-        leaks_blocked = []
-        
-        for category, keywords in categories.items():
-            for keyword in keywords:
-                normalized = self._normalize_keyword(keyword)
-                correct_category = self._find_correct_category(normalized)
-                
-                if correct_category and correct_category != category:
-                    # Keyword is in wrong category
-                    corrected[correct_category].append(keyword)
-                    leaks_blocked.append(f"{keyword} (moved from {category} to {correct_category})")
-                    current_app.logger.info(f"Category leak blocked: {keyword} moved from {category} to {correct_category}")
-                else:
-                    # Keyword is in correct category or no specific category found
-                    corrected[category].append(keyword)
-        
-        return corrected, leaks_blocked
+        return enforce_isolation(categories)
     
     def _find_correct_category(self, normalized_keyword: str) -> str:
         """Find the correct category for a keyword based on guards."""

@@ -312,28 +312,60 @@
       "input_total": 4,
       "output_accounted": 3,
       "timing_ms": 2
+    },
+    "2025-09-12-040": {
+      "timestamp": "2025-09-12T14:30:55.470670",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-041": {
+      "timestamp": "2025-09-12T14:32:05.777984",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 6,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-042": {
+      "timestamp": "2025-09-12T14:35:54.799323",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 6,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-043": {
+      "timestamp": "2025-09-12T14:43:29.059276",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 6,
+      "output_accounted": 3,
+      "timing_ms": 1
     }
   },
   "totals": {
-    "total_batches": 39,
-    "total_keywords_processed": 6919,
-    "total_keywords_output": 117,
-    "total_duplicates_dropped": 223,
+    "total_batches": 43,
+    "total_keywords_processed": 6941,
+    "total_keywords_output": 129,
+    "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 100
+    "total_timing_ms": 104
   },
   "categories": {
     "industry": {
-      "batches": 29,
-      "keywords": 29
+      "batches": 33,
+      "keywords": 33
     },
     "company": {
-      "batches": 29,
-      "keywords": 29
+      "batches": 33,
+      "keywords": 33
     },
     "regulatory": {
-      "batches": 29,
-      "keywords": 29
+      "batches": 33,
+      "keywords": 33
     }
   }
 }
