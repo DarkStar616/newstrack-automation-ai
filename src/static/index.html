@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newstrack Keyword Automation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+        
+        .form-container {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e6ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        input[type="text"]:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #2c3e50;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-container {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            margin: 0 5px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .results h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .category {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .category h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .keyword {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .metadata {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e8;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #2d5a2d;
+        }
+        
+        .metadata h4 {
+            margin-bottom: 10px;
+            color: #1e4620;
+        }
+        
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .metadata-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .guardrails-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: #fff3cd;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+            font-size: 0.9em;
+        }
+        
+        .guardrails-info h5 {
+            margin-bottom: 8px;
+            color: #856404;
+        }
+        
+        .guardrails-list {
+            color: #856404;
+        }
+        
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .progress-steps {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .container {
+                margin: 10px;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Newstrack Keyword Automation</h1>
+            <p>Enterprise-grade keyword processing with guardrails and audit trails</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>System Operational</span>
+            </div>
+            <div id="systemStatus">Loading status...</div>
+        </div>
+        
+        <div class="form-container">
+            <form id="keywordForm">
+                <div class="form-group">
+                    <label for="sector">Sector:</label>
+                    <input type="text" id="sector" name="sector" placeholder="e.g., short-term insurance" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="company">Company (optional):</label>
+                    <input type="text" id="company" name="company" placeholder="e.g., Santam">
+                </div>
+                
+                <div class="form-group">
+                    <label for="keywords">Keywords (one per line):</label>
+                    <textarea id="keywords" name="keywords" placeholder="Enter keywords, one per line..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="date">Current Date:</label>
+                    <input type="text" id="date" name="date" value="2025-08" required>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn btn-primary" onclick="processKeywords('categorize')">
+                        1. Categorize Only
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="processKeywords('expand')">
+                        2. Expand Categories
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="processKeywords('process-all')">
+                        3. Full Process
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="processKeywords('drop')">
+                        4. Drop Outdated
+                    </button>
+                </div>
+            </form>
+            
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-steps">
+                    <div class="step" id="step1">Categorize</div>
+                    <div class="step" id="step2">Expand</div>
+                    <div class="step" id="step3">Drop Outdated</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="loading" id="loadingMessage">
+                    <div class="spinner"></div>
+                    <div>Processing keywords with guardrails...</div>
+                </div>
+            </div>
+            
+            <div class="results" id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const steps = ['step1', 'step2', 'step3'];
+        
+        // Load system status on page load
+        window.addEventListener('load', loadSystemStatus);
+        
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                if (status.manifest) {
+                    const totalBatches = status.manifest.totals.total_batches;
+                    const totalKeywords = status.manifest.totals.total_keywords_processed;
+                    document.getElementById('systemStatus').textContent = 
+                        `Processed ${totalBatches} batches, ${totalKeywords} keywords this month`;
+                } else {
+                    document.getElementById('systemStatus').textContent = 'Ready for first processing';
+                }
+            } catch (error) {
+                document.getElementById('systemStatus').textContent = 'Status unavailable';
+            }
+        }
+        
+        function updateProgress(step, completed = false) {
+            // Reset all steps
+            steps.forEach(s => {
+                document.getElementById(s).classList.remove('active', 'completed');
+            });
+            
+            // Mark completed steps
+            for (let i = 0; i < step; i++) {
+                document.getElementById(steps[i]).classList.add('completed');
+            }
+            
+            // Mark current step as active (unless completed)
+            if (!completed && step < steps.length) {
+                document.getElementById(steps[step]).classList.add('active');
+            }
+            
+            // Update progress bar
+            const progress = completed ? 100 : (step / steps.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+        
+        function showProgress() {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+        }
+        
+        function hideProgress() {
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+        
+        function showResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            if (data.error) {
+                resultsDiv.innerHTML = `<div class="error">${data.error}</div>`;
+            } else {
+                let html = '<h3>Results:</h3>';
+                
+                // Handle different response structures
+                let categories = {};
+                let metadata = {};
+                let guardrails = {};
+                
+                if (data.categories) {
+                    categories = data.categories;
+                } else if (data.result && data.result.categories) {
+                    categories = data.result.categories;
+                } else if (data.result && data.result.final_result && data.result.final_result.updated) {
+                    categories = data.result.final_result.updated;
+                }
+                
+                // Extract metadata
+                if (data.batch_id) {
+                    metadata.batch_id = data.batch_id;
+                }
+                if (data.timing_ms) {
+                    metadata.timing_ms = data.timing_ms;
+                }
+                if (data.processed_count) {
+                    metadata.processed_count = data.processed_count;
+                }
+                
+                // Extract guardrails info
+                if (data.guardrails) {
+                    guardrails = data.guardrails.guardrails || {};
+                }
+                
+                // Display categories
+                for (const [category, keywords] of Object.entries(categories)) {
+                    if (keywords && keywords.length > 0) {
+                        html += `
+                            <div class="category">
+                                <h4>${category.charAt(0).toUpperCase() + category.slice(1)} (${keywords.length} keywords)</h4>
+                                <div class="keywords">
+                                    ${keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // Display metadata
+                if (Object.keys(metadata).length > 0) {
+                    html += `
+                        <div class="metadata">
+                            <h4>Processing Metadata</h4>
+                            <div class="metadata-grid">
+                                ${metadata.batch_id ? `<div class="metadata-item"><span>Batch ID:</span><span>${metadata.batch_id}</span></div>` : ''}
+                                ${metadata.timing_ms ? `<div class="metadata-item"><span>Processing Time:</span><span>${metadata.timing_ms}ms</span></div>` : ''}
+                                ${metadata.processed_count ? `<div class="metadata-item"><span>Keywords Processed:</span><span>${metadata.processed_count}</span></div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Display guardrails info
+                if (Object.keys(guardrails).length > 0) {
+                    html += '<div class="guardrails-info"><h5>Guardrails Applied</h5><div class="guardrails-list">';
+                    
+                    if (guardrails.duplicates_dropped && guardrails.duplicates_dropped.length > 0) {
+                        html += `<p>• Duplicates removed: ${guardrails.duplicates_dropped.length}</p>`;
+                    }
+                    
+                    if (guardrails.leaks_blocked && guardrails.leaks_blocked.length > 0) {
+                        html += `<p>• Category leaks blocked: ${guardrails.leaks_blocked.length}</p>`;
+                    }
+                    
+                    if (guardrails.completeness_check) {
+                        const isComplete = guardrails.completeness_check.is_complete;
+                        html += `<p>• Completeness check: ${isComplete ? 'Passed' : 'Failed'}</p>`;
+                    }
+                    
+                    html += '</div></div>';
+                }
+                
+                resultsDiv.innerHTML = html;
+            }
+            
+            resultsDiv.style.display = 'block';
+        }
+        
+        async function processKeywords(action) {
+            const form = document.getElementById('keywordForm');
+            const formData = new FormData(form);
+            
+            const data = {
+                sector: formData.get('sector'),
+                company: formData.get('company'),
+                keywords: formData.get('keywords'),
+                date: formData.get('date')
+            };
+            
+            // Disable buttons
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            showProgress();
+            
+            try {
+                let endpoint;
+                let expectedSteps;
+                
+                switch (action) {
+                    case 'categorize':
+                        endpoint = '/api/categorize';
+                        expectedSteps = 1;
+                        updateProgress(0);
+                        break;
+                    case 'expand':
+                        endpoint = '/api/expand';
+                        expectedSteps = 2;
+                        updateProgress(0);
+                        break;
+                    case 'drop':
+                        endpoint = '/api/drop';
+                        expectedSteps = 3;
+                        updateProgress(2);
+                        break;
+                    case 'process-all':
+                        endpoint = '/api/process-all';
+                        expectedSteps = 3;
+                        updateProgress(0);
+                        break;
+                }
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Idempotency-Key': `web-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    updateProgress(expectedSteps, true);
+                    setTimeout(() => {
+                        hideProgress();
+                        showResults(result);
+                        loadSystemStatus(); // Refresh status after processing
+                    }, 500);
+                } else {
+                    hideProgress();
+                    showResults({ error: result.error || 'An error occurred' });
+                }
+                
+            } catch (error) {
+                hideProgress();
+                showResults({ error: 'Network error: ' + error.message });
+            } finally {
+                // Re-enable buttons
+                buttons.forEach(btn => btn.disabled = false);
+            }
+        }
+        
+        // Set default date to current month
+        document.getElementById('date').value = new Date().toISOString().slice(0, 7);
+    </script>
+</body>
+</html>
+

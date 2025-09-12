@@ -1,0 +1,48 @@
+# Industry keywords - general industry terms, products, services, market segments
+insurance
+banking
+finance
+fintech
+healthcare
+technology
+automotive
+retail
+manufacturing
+energy
+telecommunications
+real estate
+construction
+agriculture
+mining
+oil
+gas
+renewable energy
+solar
+wind
+electric vehicles
+artificial intelligence
+machine learning
+blockchain
+cryptocurrency
+cloud computing
+cybersecurity
+data analytics
+software
+hardware
+pharmaceuticals
+biotechnology
+medical devices
+hospitality
+tourism
+transportation
+logistics
+supply chain
+e-commerce
+digital marketing
+social media
+mobile apps
+internet of things
+5g
+automation
+robotics
+

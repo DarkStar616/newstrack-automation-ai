@@ -1,0 +1,26 @@
+# Newstrack Batch Runner Configuration
+
+# Default batch processing settings
+batch_size: 300
+max_retries: 3
+retry_delay_seconds: 2
+
+# API settings
+api_base_url: "http://localhost:3000/api"
+timeout_seconds: 300
+
+# Processing settings
+default_sector: "general"
+default_date: "2025-08"
+
+# Search settings (for future expansion)
+search_mode: "off"  # off, fast, deep
+
+# File paths
+input_file: "data/keywords.csv"
+output_dir: "results"
+
+# Logging
+log_level: "INFO"
+log_file: "batch_runner.log"
+

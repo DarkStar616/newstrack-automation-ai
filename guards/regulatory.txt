@@ -1,0 +1,62 @@
+# Regulatory keywords - laws, regulations, compliance terms, government bodies
+# South African regulatory bodies
+fsca
+prudential authority
+reserve bank
+sarb
+national treasury
+competition commission
+# International regulatory bodies
+sec
+fca
+eba
+basel
+solvency
+# Regulatory terms
+compliance
+regulation
+legislation
+policy
+act
+bill
+law
+directive
+guideline
+framework
+standard
+requirement
+mandate
+oversight
+supervision
+audit
+inspection
+governance
+risk management
+capital adequacy
+liquidity
+stress testing
+reporting
+disclosure
+transparency
+accountability
+sanctions
+penalties
+enforcement
+# Specific acts and regulations
+popi act
+fica
+fais
+insurance act
+banks act
+companies act
+consumer protection act
+competition act
+broad-based black economic empowerment
+bbbee
+king iv
+gdpr
+mifid
+ifrs
+basel iii
+solvency ii
+

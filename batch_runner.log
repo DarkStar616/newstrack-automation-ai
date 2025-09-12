@@ -1,0 +1,6 @@
+2025-09-10 09:31:43,753 - INFO - Loaded 2 keyword sets from data/keywords_sample.csv
+2025-09-10 09:31:43,754 - INFO - Processing plan: 24 batches, 6870 total keywords
+2025-09-10 09:31:43,754 - INFO - Processing batch 0 of dataset 0
+2025-09-10 09:32:13,520 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:3000/api/process-all
+2025-09-10 09:32:13,520 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:3000/api/process-all
+2025-09-10 09:32:13,520 - INFO - Processing batch 1 of dataset 0
