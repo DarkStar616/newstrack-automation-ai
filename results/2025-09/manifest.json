@@ -80,28 +80,36 @@
       "input_total": 4,
       "output_accounted": 3,
       "timing_ms": 2
+    },
+    "2025-09-12-011": {
+      "timestamp": "2025-09-12T14:13:39.545826",
+      "category": "healthcare",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 2
     }
   },
   "totals": {
-    "total_batches": 10,
-    "total_keywords_processed": 29,
-    "total_keywords_output": 30,
+    "total_batches": 11,
+    "total_keywords_processed": 32,
+    "total_keywords_output": 33,
     "total_duplicates_dropped": 0,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 17
+    "total_timing_ms": 19
   },
   "categories": {
     "industry": {
-      "batches": 0,
-      "keywords": 0
+      "batches": 1,
+      "keywords": 1
     },
     "company": {
-      "batches": 0,
-      "keywords": 0
+      "batches": 1,
+      "keywords": 1
     },
     "regulatory": {
-      "batches": 0,
-      "keywords": 0
+      "batches": 1,
+      "keywords": 1
     }
   }
 }
