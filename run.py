@@ -157,14 +157,28 @@ class BatchRunner:
                             company: str, 
                             date: str,
                             idempotency_key: str) -> Dict[str, Any]:
-        """Process a batch via the API."""
+        """Process a batch via the API with fallback to individual endpoints."""
+        # Try process-all endpoint first
+        try:
+            return self.process_batch_unified(keywords, sector, company, date, idempotency_key)
+        except Exception as e:
+            self.logger.warning(f"Unified process-all failed: {e}. Trying fallback to individual endpoints.")
+            return self.process_batch_fallback(keywords, sector, company, date, idempotency_key)
+    
+    def process_batch_unified(self, 
+                            keywords: List[str], 
+                            sector: str, 
+                            company: str, 
+                            date: str,
+                            idempotency_key: str) -> Dict[str, Any]:
+        """Process a batch via the unified /process-all endpoint."""
         url = f"{self.config['api_base_url']}/process-all"
         
         payload = {
             'sector': sector,
             'company': company,
             'keywords': '\n'.join(keywords),
-            'date': date
+            'current_date': date
         }
         
         headers = {
@@ -172,14 +186,79 @@ class BatchRunner:
             'X-Idempotency-Key': idempotency_key
         }
         
-        try:
-            response = self.session.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
-            
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API request failed: {e}")
-            raise
+        response = self.session.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def process_batch_fallback(self, 
+                             keywords: List[str], 
+                             sector: str, 
+                             company: str, 
+                             date: str,
+                             idempotency_key: str) -> Dict[str, Any]:
+        """Process a batch via individual endpoints when process-all fails."""
+        self.logger.info(f"Using fallback processing for batch {idempotency_key}")
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Idempotency-Key': idempotency_key
+        }
+        
+        # Step 1: Categorize
+        categorize_payload = {
+            'sector': sector,
+            'company': company,
+            'keywords': '\n'.join(keywords)
+        }
+        
+        response1 = self.session.post(
+            f"{self.config['api_base_url']}/categorize", 
+            json=categorize_payload, 
+            headers=headers
+        )
+        response1.raise_for_status()
+        step1_result = response1.json()
+        
+        # Step 2: Expand
+        company_or_sector = company if company else sector
+        expand_payload = {
+            'company_or_sector': company_or_sector,
+            'step1_result': step1_result['result']
+        }
+        
+        response2 = self.session.post(
+            f"{self.config['api_base_url']}/expand", 
+            json=expand_payload, 
+            headers=headers
+        )
+        response2.raise_for_status()
+        step2_result = response2.json()
+        
+        # Step 3: Drop
+        drop_payload = {
+            'company_or_sector': company_or_sector,
+            'date': date,
+            'step2_result': step2_result['result']
+        }
+        
+        response3 = self.session.post(
+            f"{self.config['api_base_url']}/drop", 
+            json=drop_payload, 
+            headers=headers
+        )
+        response3.raise_for_status()
+        step3_result = response3.json()
+        
+        # Stitch results together in the same format as process-all
+        return {
+            'success': True,
+            'step1_result': step1_result['result'],
+            'step2_result': step2_result['result'],
+            'step3_result': step3_result['result'],
+            'final_result': step3_result['result'],
+            'guardrails': step1_result.get('guardrails', {}),
+            'fallback_mode': True
+        }
     
     def run_batch_processing(self, 
                            input_file: str,

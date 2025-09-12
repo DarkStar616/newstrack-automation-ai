@@ -1,0 +1,60 @@
+You are my senior Python engineer. Fix the end-to-end pipeline so batch runs work in test mode without external APIs. Make only minimal, surgical changes and show diffs for approval.
+
+Objectives
+1) Fix /api/process-all so it does not call other Flask routes internally.
+2) Extract pure service functions for categorize, expand, and drop, then use them in all endpoints including process-all.
+3) Keep LLM_TEST_MODE so no external API calls happen. Test-mode must return strict JSON for all steps.
+4) Ensure audit JSONL and manifest.json are written on success.
+5) Add a safe fallback in the batch runner: if /api/process-all returns non-200, call the 3 step endpoints sequentially and stitch results. Preserve idempotency.
+6) Re-run Part 1 step 4b and confirm files appear under results/YYYY-MM.
+
+Exact changes
+- Create a new module src/services/newstrack_service.py with 3 pure functions:
+  - do_categorize(sector:str, company:str|None, keywords:list[str]) -> dict  # returns strict JSON matching the Categorize schema
+  - do_expand(sector:str, company:str|None, categories:dict) -> dict        # returns strict JSON matching the Expand schema
+  - do_drop(sector:str, company:str|None, current_date:str, categories:dict) -> dict  # returns strict JSON matching the Drop schema
+  Each must call into the LLM client abstraction and then apply guardrails via src/utils/guardrails.py and any needed helpers. In LLM_TEST_MODE they must emit deterministic JSON without calling external APIs.
+
+- In src/routes/newstrack.py:
+  - Refactor /api/categorize, /api/expand, /api/drop to parse request JSON into Python types, call the corresponding do_* service function, then jsonify the result. Do not return Flask Response objects from nested calls.
+  - Rewrite /api/process-all:
+    * Parse JSON: sector, optional company, keywords (string with newlines or array), and current date.
+    * Normalize keywords into a list.
+    * Call do_categorize -> categories
+    * Call do_expand with categories -> expanded
+    * Call do_drop with expanded -> final_updated + removed
+    * Build a combined response with guardrails summary, then write audit JSONL entries and update results/YYYY-MM/manifest.json.
+    * Return a 200 JSON with the combined object.
+
+- LLM test mode:
+  - In src/utils/llm_client.py ensure that when LLM_TEST_MODE=true no provider client is constructed. Add helpers like generate_test_categorize_response, generate_test_expand_response, generate_test_drop_response so outputs always match the strict schemas.
+
+- Audit writers:
+  - If not already present, create small helpers in src/utils/audit.py to append JSONL and update manifest.json with counts: input_total, output_accounted, added, removed, duplicates_dropped, leaks_blocked, timing_ms. Create results/YYYY-MM/ if missing.
+
+- Batch runner fallback:
+  - In run.py, when a POST to /api/process-all fails or returns non-200, automatically call the 3 endpoints in sequence with the same payload and stitch the outputs into the same on-disk audit structure. Keep idempotency and retries as-is.
+
+- Defensive fix (minimal) if you keep any Response handling:
+  - If code still handles Flask Response somewhere, never subscript it. Use: data = response.get_json() if isinstance(response, Response) else response.
+
+Acceptance criteria
+- curl -s $REPLIT_URL/api/healthz returns {"ok": true}
+- curl -s -X POST $REPLIT_URL/api/process-all with a small keyword set returns strict JSON per the combined schema.
+- python run.py --input data/keywords_sample.csv --batch-size 300 --depth off --idempotency-key sample-001 creates results/YYYY-MM/*.jsonl and results/YYYY-MM/manifest.json with non-zero counters.
+- Re-running with the same idempotency key does not inflate totals.
+- No stack traces in logs.
+
+After patching
+- Show me a short diff summary for:
+  - src/services/newstrack_service.py
+  - src/routes/newstrack.py
+  - src/utils/llm_client.py
+  - src/utils/audit.py (if created or changed)
+  - run.py
+- Then execute:
+  - curl -s $REPLIT_URL/api/healthz
+  - curl -s -X POST $REPLIT_URL/api/process-all -H "Content-Type: application/json" -d '{"sector":"insurance","company":"TestCorp","keywords":"Santam\nmotor insurance\nFSCA regulations\nFSCA regulations\nlife insurance","current_date":"2025-09-12"}' | jq
+  - python run.py --input data/keywords_sample.csv --batch-size 300 --depth off --idempotency-key sample-001
+  - ls -R results && head -n 2 results/*/*.jsonl && cat results/*/manifest.json | jq
+Report the results. If anything fails, propose the smallest additional fix and show diffs.

@@ -1,0 +1,67 @@
+{
+  "month": "2025-09",
+  "batches": {
+    "2025-09-12-001": {
+      "timestamp": "2025-09-12T13:41:08.501311",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-002": {
+      "timestamp": "2025-09-12T13:41:25.266534",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 6
+    },
+    "2025-09-12-003": {
+      "timestamp": "2025-09-12T13:41:25.277816",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-004": {
+      "timestamp": "2025-09-12T13:41:25.290010",
+      "category": "finance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-12-005": {
+      "timestamp": "2025-09-12T13:41:25.299093",
+      "category": "finance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 1
+    }
+  },
+  "totals": {
+    "total_batches": 5,
+    "total_keywords_processed": 10,
+    "total_keywords_output": 15,
+    "total_duplicates_dropped": 0,
+    "total_leaks_blocked": 0,
+    "total_timing_ms": 10
+  },
+  "categories": {
+    "industry": {
+      "batches": 0,
+      "keywords": 0
+    },
+    "company": {
+      "batches": 0,
+      "keywords": 0
+    },
+    "regulatory": {
+      "batches": 0,
+      "keywords": 0
+    }
+  }
+}

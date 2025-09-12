@@ -15,8 +15,8 @@ class GuardrailsEngine:
     
     def __init__(self):
         self.guards_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'guards')
-        self.category_guards = self._load_category_guards()
         self.canonical_mappings = self._load_canonical_mappings()
+        self.category_guards = self._load_category_guards()
         
     def _load_category_guards(self) -> Dict[str, Set[str]]:
         """Load category guard keywords from files."""

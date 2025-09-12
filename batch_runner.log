@@ -81,3 +81,16 @@
 2025-09-12 13:27:35,391 - ERROR - API request failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
 2025-09-12 13:27:35,391 - ERROR - Batch failed: 500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/api/process-all
 2025-09-12 13:27:35,391 - INFO - Batch processing completed: 0 successful, 24 failed
+2025-09-12 13:41:24,447 - INFO - Loaded 2 keyword sets from test_batch.csv
+2025-09-12 13:41:24,448 - INFO - Processing plan: 4 batches, 6 total keywords
+2025-09-12 13:41:25,245 - INFO - Loaded 2 keyword sets from test_batch.csv
+2025-09-12 13:41:25,246 - INFO - Processing plan: 4 batches, 6 total keywords
+2025-09-12 13:41:25,246 - INFO - Processing batch 0 of dataset 0
+2025-09-12 13:41:25,269 - INFO - Batch completed successfully: 2 keywords processed
+2025-09-12 13:41:25,269 - INFO - Processing batch 1 of dataset 0
+2025-09-12 13:41:25,283 - INFO - Batch completed successfully: 1 keywords processed
+2025-09-12 13:41:25,283 - INFO - Processing batch 0 of dataset 1
+2025-09-12 13:41:25,294 - INFO - Batch completed successfully: 2 keywords processed
+2025-09-12 13:41:25,294 - INFO - Processing batch 1 of dataset 1
+2025-09-12 13:41:25,300 - INFO - Batch completed successfully: 1 keywords processed
+2025-09-12 13:41:25,301 - INFO - Batch processing completed: 4 successful, 0 failed

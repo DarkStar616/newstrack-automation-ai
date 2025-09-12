@@ -82,61 +82,53 @@ class LLMClient:
         """Generate predictable test responses based on prompt content."""
         prompt = messages[0]['content'].lower() if messages else ''
         
-        if 'categorize' in prompt or 'three categories' in prompt:
-            # Categorization response
-            return json.dumps({
-                "categories": {
-                    "industry": ["test-industry-keyword"],
-                    "company": ["test-company-keyword"], 
-                    "regulatory": ["test-regulatory-keyword"]
-                },
-                "explanations": {
-                    "industry": "Test industry terms for validation",
-                    "company": "Test company terms for validation",
-                    "regulatory": "Test regulatory terms for validation"
-                }
-            })
-        
-        elif 'expand' in prompt or 'additional relevant' in prompt:
-            # Expansion response  
-            return json.dumps({
-                "expanded": {
-                    "industry": ["test-industry-keyword", "expanded-industry-term"],
-                    "company": ["test-company-keyword", "expanded-company-term"],
-                    "regulatory": ["test-regulatory-keyword", "expanded-regulatory-term"]
-                },
-                "notes": "Test expansion with predictable additional terms"
-            })
-        
-        elif 'drop' in prompt or 'outdated' in prompt or 'remove' in prompt:
-            # Drop outdated response
-            return json.dumps({
-                "updated": {
-                    "industry": ["test-industry-keyword"],
-                    "company": ["test-company-keyword"],
-                    "regulatory": ["test-regulatory-keyword"]
-                },
-                "removed": [
-                    {"term": "expanded-industry-term", "reason": "Test removal for validation"},
-                    {"term": "expanded-company-term", "reason": "Another test removal"}
-                ],
-                "justification": "Test justification for removing outdated terms"
-            })
-        
+        if 'expand' in prompt and 'existing categories' in prompt:
+            return self.generate_test_expand_response()
+        elif 'drop' in prompt or 'outdated' in prompt or 'currency expert' in prompt:
+            return self.generate_test_drop_response()
         else:
-            # Default fallback response
-            return json.dumps({
-                "categories": {
-                    "industry": ["fallback-industry"],
-                    "company": ["fallback-company"],
-                    "regulatory": ["fallback-regulatory"]
-                },
-                "explanations": {
-                    "industry": "Fallback response",
-                    "company": "Fallback response", 
-                    "regulatory": "Fallback response"
-                }
-            })
+            return self.generate_test_categorize_response()
+    
+    def generate_test_categorize_response(self) -> str:
+        """Generate test response for categorization requests."""
+        return json.dumps({
+            "categories": {
+                "industry": ["test-industry-keyword"],
+                "company": ["test-company-keyword"], 
+                "regulatory": ["test-regulatory-keyword"]
+            },
+            "explanations": {
+                "industry": "Test industry terms for validation",
+                "company": "Test company terms for validation",
+                "regulatory": "Test regulatory terms for validation"
+            }
+        })
+    
+    def generate_test_expand_response(self) -> str:
+        """Generate test response for expansion requests."""
+        return json.dumps({
+            "expanded": {
+                "industry": ["test-industry-keyword", "expanded-industry-term"],
+                "company": ["test-company-keyword", "expanded-company-term"],
+                "regulatory": ["test-regulatory-keyword", "expanded-regulatory-term"]
+            },
+            "notes": "Test expansion with predictable additional terms"
+        })
+    
+    def generate_test_drop_response(self) -> str:
+        """Generate test response for drop requests."""
+        return json.dumps({
+            "updated": {
+                "industry": ["test-industry-keyword"],
+                "company": ["test-company-keyword"],
+                "regulatory": ["test-regulatory-keyword"]
+            },
+            "removed": [
+                {"term": "expanded-industry-term", "reason": "Test removal for validation"},
+                {"term": "expanded-company-term", "reason": "Another test removal"}
+            ],
+            "justification": "Test justification for removing outdated terms"
+        })
     
     def parse_json_response(self, response: str) -> Dict[str, Any]:
         """
