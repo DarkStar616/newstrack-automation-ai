@@ -824,32 +824,64 @@
       "input_total": 3,
       "output_accounted": 15,
       "timing_ms": 28117
+    },
+    "2025-09-14-057": {
+      "timestamp": "2025-09-14T16:08:20.008431",
+      "category": "Finance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 15,
+      "timing_ms": 2855
+    },
+    "2025-09-14-058": {
+      "timestamp": "2025-09-14T16:08:29.119564",
+      "category": "Technology",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 15,
+      "timing_ms": 2752
+    },
+    "2025-09-14-059": {
+      "timestamp": "2025-09-14T16:08:31.702030",
+      "category": "Technology",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 15,
+      "timing_ms": 2504
+    },
+    "2025-09-14-060": {
+      "timestamp": "2025-09-14T16:08:34.771396",
+      "category": "Technology",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 16,
+      "timing_ms": 3009
     }
   },
   "totals": {
-    "total_batches": 103,
-    "total_keywords_processed": 7130,
-    "total_keywords_output": 671,
+    "total_batches": 107,
+    "total_keywords_processed": 7135,
+    "total_keywords_output": 732,
     "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 1144251,
-    "total_keywords_with_evidence": 598,
+    "total_timing_ms": 1155371,
+    "total_keywords_with_evidence": 659,
     "total_evidence_items": 1054,
     "total_keywords_dropped_with_evidence": 0,
     "total_keywords_dropped_no_evidence": 0
   },
   "categories": {
     "industry": {
-      "batches": 93,
-      "keywords": 220
+      "batches": 97,
+      "keywords": 241
     },
     "company": {
-      "batches": 93,
-      "keywords": 220
+      "batches": 97,
+      "keywords": 240
     },
     "regulatory": {
-      "batches": 93,
-      "keywords": 201
+      "batches": 97,
+      "keywords": 221
     }
   },
   "search": {
