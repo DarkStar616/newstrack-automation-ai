@@ -716,90 +716,271 @@
             
             if (data.error) {
                 resultsDiv.innerHTML = `<div class="error">${data.error}</div>`;
-            } else {
-                let html = '<h3>Results:</h3>';
-                
-                // Handle different response structures
-                let categories = {};
-                let metadata = {};
-                let guardrails = {};
-                
-                if (data.categories) {
-                    categories = data.categories;
-                } else if (data.result && data.result.categories) {
-                    categories = data.result.categories;
-                } else if (data.result && data.result.final_result && data.result.final_result.updated) {
-                    categories = data.result.final_result.updated;
-                }
-                
-                // Extract metadata
-                if (data.batch_id) {
-                    metadata.batch_id = data.batch_id;
-                }
-                if (data.timing_ms) {
-                    metadata.timing_ms = data.timing_ms;
-                }
-                if (data.processed_count) {
-                    metadata.processed_count = data.processed_count;
-                }
-                
-                // Extract guardrails info
-                if (data.guardrails) {
-                    guardrails = data.guardrails.guardrails || {};
-                }
-                
-                // Display categories
-                for (const [category, keywords] of Object.entries(categories)) {
-                    if (keywords && keywords.length > 0) {
-                        html += `
-                            <div class="category">
-                                <h4>${category.charAt(0).toUpperCase() + category.slice(1)} (${keywords.length} keywords)</h4>
-                                <div class="keywords">
-                                    ${keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            
+            let html = '<h3>Processing Results</h3>';
+            
+            // Extract step results and metadata
+            const step1_result = data.step1_result || {};
+            const step2_result = data.step2_result || {};
+            const step3_result = data.step3_result || {};
+            const final_result = data.final_result || {};
+            
+            // Keep existing metadata section
+            const metadata = {
+                batch_id: data.batch_id,
+                timing_ms: data.timing_ms,
+                processed_count: data.processed_count
+            };
+            
+            if (Object.keys(metadata).some(key => metadata[key])) {
+                html += `
+                    <div class="metadata">
+                        <h4>Processing Metadata</h4>
+                        <div class="metadata-grid">
+                            ${metadata.batch_id ? `<div class="metadata-item"><span>Batch ID:</span><span>${metadata.batch_id}</span></div>` : ''}
+                            ${metadata.timing_ms ? `<div class="metadata-item"><span>Processing Time:</span><span>${metadata.timing_ms}ms</span></div>` : ''}
+                            ${metadata.processed_count ? `<div class="metadata-item"><span>Keywords Processed:</span><span>${metadata.processed_count}</span></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Step 1: Categories + Explanations
+            if (step1_result.categories || step1_result.explanations) {
+                html += `
+                    <div class="step-section">
+                        <details open>
+                            <summary class="step-header">Step 1: Categorization</summary>
+                            <div class="step-content">
+                                <div class="three-column-grid">
+                                    <div>
+                                        <div class="column-header">Industry</div>
+                                        <div class="keywords">
+                                            ${(step1_result.categories?.industry || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                        ${step1_result.explanations?.industry ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${step1_result.explanations.industry}</p>` : ''}
+                                    </div>
+                                    <div>
+                                        <div class="column-header">Company</div>
+                                        <div class="keywords">
+                                            ${(step1_result.categories?.company || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                        ${step1_result.explanations?.company ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${step1_result.explanations.company}</p>` : ''}
+                                    </div>
+                                    <div>
+                                        <div class="column-header">Regulatory</div>
+                                        <div class="keywords">
+                                            ${(step1_result.categories?.regulatory || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                        ${step1_result.explanations?.regulatory ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${step1_result.explanations.regulatory}</p>` : ''}
+                                    </div>
                                 </div>
                             </div>
-                        `;
-                    }
-                }
-                
-                // Display metadata
-                if (Object.keys(metadata).length > 0) {
-                    html += `
-                        <div class="metadata">
-                            <h4>Processing Metadata</h4>
-                            <div class="metadata-grid">
-                                ${metadata.batch_id ? `<div class="metadata-item"><span>Batch ID:</span><span>${metadata.batch_id}</span></div>` : ''}
-                                ${metadata.timing_ms ? `<div class="metadata-item"><span>Processing Time:</span><span>${metadata.timing_ms}ms</span></div>` : ''}
-                                ${metadata.processed_count ? `<div class="metadata-item"><span>Keywords Processed:</span><span>${metadata.processed_count}</span></div>` : ''}
+                        </details>
+                    </div>
+                `;
+            }
+            
+            // Step 2: Expanded Terms
+            if (step2_result.categories) {
+                html += `
+                    <div class="step-section">
+                        <details open>
+                            <summary class="step-header">Step 2: Expanded Terms</summary>
+                            <div class="step-content">
+                                <div class="three-column-grid">
+                                    <div>
+                                        <div class="column-header">Industry</div>
+                                        <div class="keywords">
+                                            ${(step2_result.categories.industry || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="column-header">Company</div>
+                                        <div class="keywords">
+                                            ${(step2_result.categories.company || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="column-header">Regulatory</div>
+                                        <div class="keywords">
+                                            ${(step2_result.categories.regulatory || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                        </details>
+                    </div>
+                `;
+            }
+            
+            // Step 3: Updated + Removed
+            if (step3_result.updated || step3_result.removed || final_result.updated || final_result.removed) {
+                const updated = step3_result.updated || final_result.updated || {};
+                const removed = step3_result.removed || final_result.removed || {};
+                
+                html += `
+                    <div class="step-section">
+                        <details open>
+                            <summary class="step-header">Step 3: Currency Validation</summary>
+                            <div class="step-content">
+                                <h4>Updated (Kept) Keywords</h4>
+                                <div class="three-column-grid">
+                                    <div>
+                                        <div class="column-header">Industry</div>
+                                        <div class="keywords">
+                                            ${(updated.industry || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="column-header">Company</div>
+                                        <div class="keywords">
+                                            ${(updated.company || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="column-header">Regulatory</div>
+                                        <div class="keywords">
+                                            ${(updated.regulatory || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                </div>`;
+                
+                // Removed keywords with reasons
+                const removedItems = [];
+                ['industry', 'company', 'regulatory'].forEach(category => {
+                    if (removed[category]) {
+                        removed[category].forEach(item => {
+                            if (typeof item === 'object' && item.keyword && item.reason) {
+                                removedItems.push({ keyword: item.keyword, reason: item.reason, category });
+                            } else if (typeof item === 'string') {
+                                removedItems.push({ keyword: item, reason: 'Outdated or no longer relevant', category });
+                            }
+                        });
+                    }
+                });
+                
+                if (removedItems.length > 0) {
+                    html += `
+                        <div class="removed-section">
+                            <h4>Removed Keywords</h4>
+                            ${removedItems.map(item => `
+                                <div class="removed-item">
+                                    <div class="removed-keyword">${item.keyword} (${item.category})</div>
+                                    <div class="removed-reason">${item.reason}</div>
+                                </div>
+                            `).join('')}
                         </div>
                     `;
                 }
                 
-                // Display guardrails info
-                if (Object.keys(guardrails).length > 0) {
-                    html += '<div class="guardrails-info"><h5>Guardrails Applied</h5><div class="guardrails-list">';
-                    
-                    if (guardrails.duplicates_dropped && guardrails.duplicates_dropped.length > 0) {
-                        html += `<p>• Duplicates removed: ${guardrails.duplicates_dropped.length}</p>`;
-                    }
-                    
-                    if (guardrails.leaks_blocked && guardrails.leaks_blocked.length > 0) {
-                        html += `<p>• Category leaks blocked: ${guardrails.leaks_blocked.length}</p>`;
-                    }
-                    
-                    if (guardrails.completeness_check) {
-                        const isComplete = guardrails.completeness_check.is_complete;
-                        html += `<p>• Completeness check: ${isComplete ? 'Passed' : 'Failed'}</p>`;
-                    }
-                    
-                    html += '</div></div>';
-                }
-                
-                resultsDiv.innerHTML = html;
+                html += `</div></details></div>`;
             }
             
+            // Guardrails Summary
+            const guardrails = data.guardrails || final_result.guardrails || step3_result.guardrails || {};
+            if (Object.keys(guardrails).length > 0) {
+                const counts = guardrails.counts || {};
+                const completeness = guardrails.completeness_check || {};
+                
+                html += `
+                    <div class="guardrails-summary">
+                        <h4>Guardrails Summary</h4>
+                        <div class="guardrails-grid">
+                            <div class="guardrail-stat">
+                                <div class="stat-number">${counts.input_total || 0}</div>
+                                <div class="stat-label">Input Total</div>
+                            </div>
+                            <div class="guardrail-stat">
+                                <div class="stat-number">${counts.output_accounted || 0}</div>
+                                <div class="stat-label">Output Accounted</div>
+                            </div>
+                            <div class="guardrail-stat">
+                                <div class="stat-number">${counts.duplicates_dropped || 0}</div>
+                                <div class="stat-label">Duplicates Dropped</div>
+                            </div>
+                            <div class="guardrail-stat">
+                                <div class="stat-number">${counts.leaks_blocked || 0}</div>
+                                <div class="stat-label">Leaks Blocked</div>
+                            </div>
+                        </div>
+                        ${!completeness.is_complete && completeness.missing_keywords ? `
+                            <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; border-left: 3px solid #ffc107;">
+                                <strong>Completeness Check Failed</strong><br>
+                                Missing keywords: ${completeness.missing_keywords.join(', ')}
+                            </div>
+                        ` : completeness.is_complete ? `
+                            <div style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 4px; border-left: 3px solid #28a745;">
+                                <strong>✓ Completeness Check Passed</strong>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // Evidence Mode Section
+            const evidence_refs = step3_result.evidence_refs || final_result.evidence_refs || {};
+            if (Object.keys(evidence_refs).length > 0) {
+                html += `
+                    <div class="evidence-section">
+                        <h4>Evidence Mode Results</h4>
+                        <p style="margin-bottom: 15px; color: #6c757d;">Real-time evidence gathered for keyword validation:</p>
+                `;
+                
+                Object.entries(evidence_refs).forEach(([keyword, evidenceList]) => {
+                    if (evidenceList && evidenceList.length > 0) {
+                        html += `
+                            <details class="evidence-keyword">
+                                <summary>${keyword} (${evidenceList.length} evidence items)</summary>
+                                <ul class="evidence-list">
+                                    ${evidenceList.map(evidence => `
+                                        <li class="evidence-item">
+                                            <div class="evidence-title">
+                                                ${evidence.url ? `<a href="${evidence.url}" target="_blank">${evidence.title || 'News Article'}</a>` : evidence.title || 'News Article'}
+                                            </div>
+                                            <div class="evidence-meta">
+                                                Published: ${evidence.published_date || 'Unknown'} | Provider: ${evidence.provider || 'Unknown'}
+                                            </div>
+                                            <div class="evidence-snippet">${evidence.snippet || 'No snippet available'}</div>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </details>
+                        `;
+                    }
+                });
+                
+                html += `</div>`;
+            }
+            
+            // Raw JSON Toggle
+            html += `
+                <div class="raw-json-section">
+                    <button class="json-toggle" onclick="toggleRawJson('${data.batch_id || Date.now()}')">Show Raw JSON</button>
+                    <div id="json-${data.batch_id || Date.now()}" class="json-content" style="display: none;">
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
             resultsDiv.style.display = 'block';
+        }
+        
+        function toggleRawJson(id) {
+            const jsonDiv = document.getElementById(`json-${id}`);
+            const button = jsonDiv.previousElementSibling;
+            
+            if (jsonDiv.style.display === 'none') {
+                jsonDiv.style.display = 'block';
+                button.textContent = 'Hide Raw JSON';
+            } else {
+                jsonDiv.style.display = 'none';
+                button.textContent = 'Show Raw JSON';
+            }
         }
         
         async function processKeywords(action) {
@@ -810,8 +991,23 @@
                 sector: formData.get('sector'),
                 company: formData.get('company'),
                 keywords: formData.get('keywords'),
-                date: formData.get('date')
+                current_date: formData.get('date')
             };
+            
+            // Add optional Evidence Mode parameters if they have values
+            const searchMode = formData.get('search_mode');
+            const recencyWindow = formData.get('recency_window_months');
+            const maxResults = formData.get('max_results_per_keyword');
+            
+            if (searchMode && searchMode !== '') {
+                data.search_mode = searchMode;
+            }
+            if (recencyWindow && recencyWindow !== '') {
+                data.recency_window_months = parseInt(recencyWindow);
+            }
+            if (maxResults && maxResults !== '') {
+                data.max_results_per_keyword = parseInt(maxResults);
+            }
             
             // Disable buttons
             const buttons = document.querySelectorAll('.btn');
