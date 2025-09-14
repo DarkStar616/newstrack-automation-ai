@@ -34,10 +34,6 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 46183
-externalPort = 3000
-
 [deployment]
 deploymentTarget = "autoscale"
 run = ["python", "run_app.py"]
