@@ -1,0 +1,125 @@
+SYSTEM ROLE: Complete Newstrack’s Excel ingestion + region-aware search + frontend UI to match the cookbook and the latest flag-only spec. This is a FINISH & HARDEN pass: implement, test, and print the final JSON from /process-all.
+
+KEY PRINCIPLES (do not violate)
+- FLAG-ONLY: Never delete keywords. final_result.removed MUST be [].
+- ONE guardrails block ONLY at the top level (final_result.guardrails MUST be null or omitted).
+- Sector-first search: always build queries like "{sector} {keyword}" plus region modifiers.
+- Excel “Source location” semantics are canonical for per-keyword scope.
+
+SCOPE OF WORK
+1) Excel Upload & Ingestion (backend)
+   - Re-enable secure routes:
+     • POST /api/keywords/upload  (multipart/form-data, .xls/.xlsx)
+     • GET  /api/keywords/example (download example template)
+   - Parse columns case-insensitively: ["Keyword","Sector","Source location"].
+   - Map Source location (trimmed):
+       blank / NA / null  -> region_mode="GLOBAL"
+       "X"                -> region_mode="INCLUDE", country="X"
+       "!X"               -> region_mode="EXCLUDE", country="X"
+     Accept "South Africa" and "!South Africa" per Brendon’s rule.
+   - Store per-row config (keyword, sector, region_mode, country) in request context for the batch run.
+   - Log for each row: {keyword, sector, region_mode, country}.
+
+2) Region-Aware Query Builder (backend)
+   - Build query = `${sector} ${keyword}`.
+   - Apply region modifiers:
+       INCLUDE: prefer geo filters (e.g., sitecountry:"South Africa" or country:"South Africa"); if unsupported, add tokens: "South Africa" OR ZA and avoid negative filters.
+       EXCLUDE: add negative tokens: -"South Africa" -ZA; if sitecountry negative is supported, use it.
+       GLOBAL: no region token.
+   - Respect runtime_config.recency_window_months at retrieval. Stamp each item with `published_date` (ISO).
+   - Keep max_results_per_keyword.
+   - Keep provider="google", search_mode="shallow". Keep live mode default.
+
+3) Flagging Rules (never remove)
+   - OUTDATED (medium): no evidence ≤ recency window.
+   - OFF_TOPIC (medium): outside general/short-term P&C context (e.g., STLDI/health items for “Short-term Insurance”).
+   - GEO_MISMATCH (medium): evidence conflicts with Excel scope (INCLUDE: not in X; EXCLUDE: in X).
+   - AMBIGUOUS (info): keyword maps to multiple entities/regs w/o resolution (e.g., “Insurance Regulatory Authority”).
+   - LOW_SIGNAL (info): thin/secondary mentions only.
+   - BROKEN_SOURCE (low): dead or non-resolving URL.
+   - NO_EVIDENCE (high): nothing credible returned.
+   Each flag object: {code, label, severity, reason, evidence_used:[indices]}.
+
+4) Frontend Additions
+   - In the run panel/header:
+       Toggle group: [ Global | Country only | Everywhere but Country ]
+       Country picker (default “South Africa”).
+       When the user changes this at the run level, use it as default for new rows; per-keyword Excel value still wins.
+   - Per keyword row:
+       • Region chip showing Global / South Africa only / !South Africa.
+       • Flag chips with severity colors (info/low/medium/high) + count hover for details.
+       • Evidence recency badge (e.g., “≤90d” or “OUTDATED”).
+       • Debug chevron to reveal built query string.
+   - Export back to Excel:
+       Global -> blank
+       Country only -> "<Country>"
+       Everywhere but -> "!<Country>"
+
+5) JSON CONTRACT (strict)
+Return EXACTLY this shape from /process-all and /drop:
+{
+  "batch_id": "<YYYY-MM-DD-###>",
+  "runtime_config": {
+    "provider": "google",
+    "search_mode": "shallow",
+    "recency_window_months": 3,
+    "max_results_per_keyword": 3,
+    "search_test_mode": false,
+    "llm_test_mode": false,
+    "bypass_cache": false
+  },
+  "step1_result": { "categories": {...}, "explanations": {...} },
+  "step2_result": { "expanded": {...}, "notes": "..." },
+  "step3_result": {
+    "evidence_refs": { "<keyword>": [ {provider,title,url,published_date,snippet}, ... ], ... },
+    "justification": "...",
+    "removed": [],   // ALWAYS empty
+    "updated": { "company": [...], "industry": [...], "regulatory": [...] }
+  },
+  "final_result": {
+    "flags": { "<keyword>": [ {code,label,severity,reason,evidence_used:[...]}, ... ], ... },
+    "evidence_refs": { ...duplicate of step3_result.evidence_refs... },
+    "guardrails": null,  // MUST be null or omitted; do NOT duplicate here
+    "justification": "One-paragraph summary."
+  },
+  "guardrails": {
+    "completeness_check": { "is_complete": <bool>, "missing_keywords": [...] },
+    "counts": { "input_total": <int>, "output_accounted": <int>, "duplicates_dropped": <int>, "leaks_blocked": <int> },
+    "duplicates_dropped": [],
+    "leaks_blocked": []
+  },
+  "success": true,
+  "timing_ms": <int>
+}
+
+6) Acceptance Tests (must pass before finishing)
+A. Contract:
+   - final_result.removed == []
+   - No inner guardrails; only top-level guardrails present.
+B. Recency:
+   - Any evidence older than the recency window adds OUTDATED on that keyword.
+C. Sector fitness:
+   - “Short-term Insurance” must flag STLDI (health) items as OFF_TOPIC.
+D. Ambiguity:
+   - “Insurance Regulatory Authority” flagged AMBIGUOUS unless region-resolved.
+E. Region scope from Excel:
+   - "South Africa" -> INCLUDE SA; non-SA evidence adds GEO_MISMATCH.
+   - "!South Africa" -> EXCLUDE SA; SA evidence adds GEO_MISMATCH.
+   - blank -> GLOBAL.
+F. UI:
+   - Toggle group present; default “South Africa”.
+   - Region chips + flag chips rendered per keyword.
+   - Debug shows the exact built query for the row.
+G. Logging:
+   - For each keyword: log {keyword, sector, region_mode, country, built_query}.
+
+7) Don’ts
+- Do not reintroduce test stubs.
+- Do not add any deletions logic.
+- Do not add a second guardrails block.
+
+BEGIN
+- Implement Excel routes + parsing + validation.
+- Implement region-aware query builder and flagging.
+- Wire frontend toggle, chips, badges, export.
+- Run acceptance tests, then print the final JSON for a sample batch.
