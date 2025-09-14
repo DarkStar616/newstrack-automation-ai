@@ -184,33 +184,27 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
     
     # Initialize search configuration
     search_mode = search_mode or get_search_mode()
-    # Force search mode in test mode for evidence gathering
-    if os.getenv("SEARCH_TEST_MODE", "false").lower() == "true" and search_mode == "off":
-        search_mode = "fast"
+    # Only force search mode if SEARCH_TEST_MODE is true AND no explicit search_mode was provided
+    if os.getenv("SEARCH_TEST_MODE", "false").lower() == "true" and not search_mode:
+        search_mode = "test"
     recency_window_months = recency_window_months or get_recency_window()
     max_results_per_keyword = max_results_per_keyword or get_max_results_for_mode(search_mode)
     
-    # Initialize Perplexity client for evidence gathering
+    # Initialize search for evidence gathering
     evidence_refs = {}
-    perplexity_client = None
     
-    if search_mode != "off":
-        perplexity_key = get_perplexity_key()
-        # In test mode, allow empty API key for stub evidence
-        if perplexity_key or os.getenv("SEARCH_TEST_MODE", "false").lower() == "true":
-            perplexity_client = PerplexityClient(perplexity_key or "test_key", search_mode)
-    
-    # Gather evidence for each keyword
+    # Gather evidence for each keyword using search abstraction
     all_keywords = []
     for category_keywords in categories.values():
         all_keywords.extend(category_keywords)
     
-    for keyword in all_keywords:
-        if perplexity_client:
-            evidence = perplexity_client.search_keyword(
+    if search_mode != "off":
+        from src.utils.search_client import search_for_evidence
+        for keyword in all_keywords:
+            evidence = search_for_evidence(
                 keyword, 
-                max_results=max_results_per_keyword,
-                recency_months=recency_window_months
+                recency_months=recency_window_months,
+                max_results=max_results_per_keyword
             )
             if evidence:
                 evidence_refs[keyword] = evidence

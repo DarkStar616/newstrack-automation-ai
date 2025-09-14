@@ -376,32 +376,168 @@
       "input_total": 3,
       "output_accounted": 3,
       "timing_ms": 1
+    },
+    "2025-09-14-001": {
+      "timestamp": "2025-09-14T11:04:03.771897",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 2
+    },
+    "2025-09-14-002": {
+      "timestamp": "2025-09-14T11:04:20.396841",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-003": {
+      "timestamp": "2025-09-14T11:04:25.125374",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-004": {
+      "timestamp": "2025-09-14T11:04:40.921975",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-005": {
+      "timestamp": "2025-09-14T11:04:47.239601",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-006": {
+      "timestamp": "2025-09-14T11:04:47.371479",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-007": {
+      "timestamp": "2025-09-14T11:04:57.913902",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 13
+    },
+    "2025-09-14-008": {
+      "timestamp": "2025-09-14T11:05:49.129910",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 2247
+    },
+    "2025-09-14-009": {
+      "timestamp": "2025-09-14T11:05:49.194237",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-010": {
+      "timestamp": "2025-09-14T11:05:50.789223",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 1467
+    },
+    "2025-09-14-011": {
+      "timestamp": "2025-09-14T11:07:08.590703",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 17197
+    },
+    "2025-09-14-012": {
+      "timestamp": "2025-09-14T11:07:08.653412",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-013": {
+      "timestamp": "2025-09-14T11:07:08.794256",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 3,
+      "timing_ms": 4
+    },
+    "2025-09-14-014": {
+      "timestamp": "2025-09-14T11:07:09.297812",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 4,
+      "output_accounted": 3,
+      "timing_ms": 5
+    },
+    "2025-09-14-015": {
+      "timestamp": "2025-09-14T11:07:44.089882",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 34735
+    },
+    "2025-09-14-016": {
+      "timestamp": "2025-09-14T11:07:44.139594",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 3,
+      "timing_ms": 1
+    },
+    "2025-09-14-017": {
+      "timestamp": "2025-09-14T11:07:44.186486",
+      "category": "insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 3,
+      "timing_ms": 5
     }
   },
   "totals": {
-    "total_batches": 47,
-    "total_keywords_processed": 6954,
-    "total_keywords_output": 141,
+    "total_batches": 64,
+    "total_keywords_processed": 6989,
+    "total_keywords_output": 192,
     "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 114,
-    "total_keywords_with_evidence": 6,
-    "total_evidence_items": 12,
+    "total_timing_ms": 55797,
+    "total_keywords_with_evidence": 78,
+    "total_evidence_items": 180,
     "total_keywords_dropped_with_evidence": 0,
     "total_keywords_dropped_no_evidence": 0
   },
   "categories": {
     "industry": {
-      "batches": 37,
-      "keywords": 37
+      "batches": 54,
+      "keywords": 54
     },
     "company": {
-      "batches": 37,
-      "keywords": 37
+      "batches": 54,
+      "keywords": 54
     },
     "regulatory": {
-      "batches": 37,
-      "keywords": 37
+      "batches": 54,
+      "keywords": 54
     }
   },
   "search": {

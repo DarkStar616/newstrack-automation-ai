@@ -28,7 +28,9 @@ def get_max_results_for_mode(mode: str) -> int:
     """Get maximum results based on search mode."""
     mode_mapping = {
         "off": 0,
-        "fast": 3,
+        "test": 2,
+        "shallow": 3,
+        "fast": 3,  # Keep for backward compatibility
         "deep": 6
     }
     return mode_mapping.get(mode, 3)
@@ -41,8 +43,13 @@ def log_search_config():
     recency = get_recency_window()
     max_results = get_max_results_for_mode(mode)
     
-    print(f"Search Config: mode={mode}, provider={provider}, recency={recency}mo, max_results={max_results}")
+    print(f"Search provider={provider}, mode={mode}, window={recency} months, max_results={max_results}")
     
-    if mode != "off" and provider == "perplexity":
-        has_key = bool(get_perplexity_key())
-        print(f"Perplexity API key: {'configured' if has_key else 'missing'}")
+    if mode != "off":
+        if provider == "google":
+            has_key = bool(os.getenv("GOOGLE_API_KEY"))
+            model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+            print(f"Google API key: {'configured' if has_key else 'missing'}, model={model}")
+        elif provider == "perplexity":
+            has_key = bool(get_perplexity_key())
+            print(f"Perplexity API key: {'configured' if has_key else 'missing'}")

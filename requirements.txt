@@ -54,5 +54,7 @@ tqdm
 typing-inspection
 typing_extensions
 Werkzeug
-httpx
-httpx
+google-generativeai
+python-dateutil
+google-generativeai
+python-dateutil
