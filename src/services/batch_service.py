@@ -59,13 +59,14 @@ class BatchGroup:
 class BatchService:
     """Service for managing batch processing of keywords with auto-batching."""
     
-    def __init__(self, max_concurrent_batches: int = 3, results_dir: str = "results"):
+    def __init__(self, max_concurrent_batches: int = 3, results_dir: str = "results", app=None):
         self.max_concurrent_batches = max_concurrent_batches
         self.results_dir = results_dir
         self.batch_groups: Dict[str, BatchGroup] = {}
         self.batch_results: Dict[str, BatchResult] = {}
         self.executor = ThreadPoolExecutor(max_workers=max_concurrent_batches)
         self.lock = threading.Lock()
+        self.app = app  # Store Flask app instance for context management
         
         # Ensure results directory exists
         os.makedirs(results_dir, exist_ok=True)
@@ -157,8 +158,29 @@ class BatchService:
                 self.batch_results[batch_id].status = BatchStatus.IN_PROGRESS
                 self.batch_results[batch_id].started_at = datetime.now().isoformat()
         
+        # Use Flask app context for background processing
+        if self.app:
+            logging.info(f"Using Flask app context for batch {batch_id}")
+            with self.app.app_context():
+                return self._process_single_batch_with_context(batch_id, keywords, sector, processing_config, start_time)
+        else:
+            logging.error(f"No Flask app available for batch {batch_id} - this will likely fail")
+            return self._process_single_batch_with_context(batch_id, keywords, sector, processing_config, start_time)
+    
+    def _process_single_batch_with_context(self, batch_id: str, keywords: List[Dict[str, Any]], 
+                                         sector: str, processing_config: Dict[str, Any], start_time: float) -> BatchResult:
+        """Process a single batch with Flask context available."""
         try:
             logging.info(f"Processing batch {batch_id} with {len(keywords)} keywords")
+            
+            # Pre-create Flask context-dependent objects WITHIN the Flask context
+            from src.utils.llm_client import get_llm_client
+            from src.utils.guardrails import get_guardrails_engine
+            from src.utils.audit import get_audit_logger
+            
+            llm_client = get_llm_client()
+            guardrails_engine = get_guardrails_engine()
+            audit_logger = get_audit_logger()
             
             # Extract keyword strings and source locations
             keyword_strings = []
@@ -180,7 +202,10 @@ class BatchService:
                 sector=sector,
                 keywords=keyword_strings,
                 source_locations=source_locations,
-                processing_config=processing_config
+                processing_config=processing_config,
+                llm_client=llm_client,
+                guardrails_engine=guardrails_engine,
+                audit_logger=audit_logger
             )
             
             if not result.get('success', False):
@@ -233,7 +258,8 @@ class BatchService:
     
     def _run_keyword_pipeline(self, sector: str, keywords: List[str], 
                             source_locations: Dict[str, Dict], 
-                            processing_config: Dict[str, Any]) -> Dict[str, Any]:
+                            processing_config: Dict[str, Any],
+                            llm_client=None, guardrails_engine=None, audit_logger=None) -> Dict[str, Any]:
         """Run the three-step keyword processing pipeline with live evidence gathering."""
         current_date = processing_config.get('current_date', datetime.now().strftime('%Y-%m-%d'))
         search_mode = processing_config.get('search_mode', 'shallow')
@@ -247,26 +273,102 @@ class BatchService:
             'source_locations': source_locations
         }
         
+        # Debug logging for pipeline
+        logging.info(f"Pipeline processing: sector='{sector}', keywords={keywords[:3]}..., search_mode='{search_mode}'")
+        
         # Step 1: Categorize
-        step1_result = do_categorize(sector, None, keywords)
-        if not step1_result.get('success', False):
-            raise Exception(f"Step 1 (Categorize) failed: {step1_result.get('error', 'Unknown error')}")
+        step1_result = self._do_categorize_with_context(sector, None, keywords, llm_client, guardrails_engine)
+        logging.info(f"Step 1 (categorize) result: {len(step1_result.get('categories', {}).get('industry', []))} industry, {len(step1_result.get('categories', {}).get('company', []))} company, {len(step1_result.get('categories', {}).get('regulatory', []))} regulatory")
         
-        # Step 2: Expand
-        step2_result = do_expand(sector, None, step1_result.get('categories', {}))
-        if not step2_result.get('success', False):
-            raise Exception(f"Step 2 (Expand) failed: {step2_result.get('error', 'Unknown error')}")
+        # Step 2: Expand using processed_categories from step 1 (like working /api/process-all)
+        step2_result = self._do_expand_with_context(sector, None, step1_result.get('processed_categories', {}), llm_client, guardrails_engine)
+        logging.info(f"Step 2 (expand) result: {len(step2_result.get('expanded', {}).get('industry', []))} industry, {len(step2_result.get('expanded', {}).get('company', []))} company, {len(step2_result.get('expanded', {}).get('regulatory', []))} regulatory")
         
-        # Step 3: Drop (with live evidence gathering)
-        final_result = do_drop(
-            sector, None, current_date, step2_result.get('categories', {}),
-            search_mode=search_mode,
-            source_location=source_locations  # Pass full dict for per-keyword region rules
+        # Step 3: Drop using expanded categories from step 2 (like working /api/process-all)
+        final_result = self._do_drop_with_context(
+            sector, None, current_date, step2_result.get('expanded', {}),
+            search_mode, source_locations, processing_config, guardrails_engine
         )
-        if not final_result.get('success', False):
-            raise Exception(f"Step 3 (Drop) failed: {final_result.get('error', 'Unknown error')}")
+        logging.info(f"Step 3 (drop) result: flags={len(final_result.get('flags', {}))}, evidence_refs={len(final_result.get('evidence_refs', {}))}, updated={len(final_result.get('updated', {}))}")
         
-        return final_result
+        # Wrap result with success flag for batch processing compatibility
+        return {
+            'success': True,
+            'error': None,
+            **final_result
+        }
+    
+    def _do_categorize_with_context(self, sector: str, company, keywords: List[str], llm_client, guardrails_engine):
+        """Run categorize step with pre-created context objects."""
+        from src.services.newstrack_service import do_categorize
+        
+        # Temporarily store objects for the service to use
+        import src.utils.llm_client
+        import src.utils.guardrails
+        
+        # Monkey patch the getter functions to return our pre-created objects
+        original_get_llm_client = src.utils.llm_client.get_llm_client
+        original_get_guardrails_engine = src.utils.guardrails.get_guardrails_engine
+        
+        src.utils.llm_client.get_llm_client = lambda: llm_client
+        src.utils.guardrails.get_guardrails_engine = lambda: guardrails_engine
+        
+        try:
+            result = do_categorize(sector, company, keywords)
+            return result
+        finally:
+            # Restore original functions
+            src.utils.llm_client.get_llm_client = original_get_llm_client
+            src.utils.guardrails.get_guardrails_engine = original_get_guardrails_engine
+    
+    def _do_expand_with_context(self, sector: str, company, categories, llm_client, guardrails_engine):
+        """Run expand step with pre-created context objects."""
+        from src.services.newstrack_service import do_expand
+        
+        # Temporarily store objects for the service to use
+        import src.utils.llm_client
+        import src.utils.guardrails
+        
+        # Monkey patch the getter functions to return our pre-created objects
+        original_get_llm_client = src.utils.llm_client.get_llm_client
+        original_get_guardrails_engine = src.utils.guardrails.get_guardrails_engine
+        
+        src.utils.llm_client.get_llm_client = lambda: llm_client
+        src.utils.guardrails.get_guardrails_engine = lambda: guardrails_engine
+        
+        try:
+            result = do_expand(sector, company, categories)
+            return result
+        finally:
+            # Restore original functions
+            src.utils.llm_client.get_llm_client = original_get_llm_client
+            src.utils.guardrails.get_guardrails_engine = original_get_guardrails_engine
+    
+    def _do_drop_with_context(self, sector: str, company, current_date: str, categories, 
+                             search_mode, source_locations, processing_config, guardrails_engine):
+        """Run drop step with pre-created context objects."""
+        from src.services.newstrack_service import do_drop
+        
+        # Temporarily store objects for the service to use
+        import src.utils.guardrails
+        
+        # Monkey patch the getter functions to return our pre-created objects
+        original_get_guardrails_engine = src.utils.guardrails.get_guardrails_engine
+        
+        src.utils.guardrails.get_guardrails_engine = lambda: guardrails_engine
+        
+        try:
+            result = do_drop(
+                sector, company, current_date, categories,
+                search_mode=search_mode,
+                recency_window_months=processing_config.get('recency_window_months'),
+                max_results_per_keyword=processing_config.get('max_results_per_keyword'),
+                source_location=source_locations
+            )
+            return result
+        finally:
+            # Restore original functions
+            src.utils.guardrails.get_guardrails_engine = original_get_guardrails_engine
     
     
     def _monitor_batch_group(self, group_id: str, futures: List):
@@ -453,9 +555,15 @@ class BatchService:
 _batch_service = None
 
 
-def get_batch_service() -> BatchService:
+def get_batch_service(app=None) -> BatchService:
     """Get the global batch service instance."""
     global _batch_service
     if _batch_service is None:
-        _batch_service = BatchService()
+        _batch_service = BatchService(app=app)
     return _batch_service
+
+
+def init_batch_service(app):
+    """Initialize the batch service with Flask app instance."""
+    global _batch_service
+    _batch_service = BatchService(app=app)

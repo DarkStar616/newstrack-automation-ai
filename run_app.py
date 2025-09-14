@@ -22,6 +22,7 @@ from flask_cors import CORS
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.newstrack import newstrack_bp
+from src.services.batch_service import init_batch_service
 
 # Create Flask app with proper static folder configuration
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'src', 'static'))
@@ -45,6 +46,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
+    # Initialize batch service with Flask app context
+    init_batch_service(app)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

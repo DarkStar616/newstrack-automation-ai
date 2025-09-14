@@ -1,0 +1,36 @@
+{
+  "batch_id": "csv-20250914-160206-0a4fe5c0-batch-001",
+  "status": "BatchStatus.COMPLETED",
+  "keywords_processed": 3,
+  "success": true,
+  "timing_ms": 3005,
+  "error": null,
+  "started_at": null,
+  "completed_at": "2025-09-14T16:02:09.025892",
+  "result_data": {
+    "success": true,
+    "error": null,
+    "updated": {},
+    "removed": [],
+    "flags": {},
+    "justification": "All 0 keywords retained with appropriate flags. Flagged 0 keywords with quality issues. Evidence evaluated for 0 keywords.",
+    "evidence_refs": {},
+    "debug_queries": {},
+    "region_scope": {},
+    "guardrails": {
+      "leaks_blocked": [],
+      "duplicates_dropped": [],
+      "completeness_check": {
+        "is_complete": true,
+        "missing_keywords": []
+      },
+      "counts": {
+        "input_total": 0,
+        "output_accounted": 0,
+        "leaks_blocked": 0,
+        "duplicates_dropped": 0,
+        "flags_total": 0
+      }
+    }
+  }
+}

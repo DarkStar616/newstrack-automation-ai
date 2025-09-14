@@ -816,32 +816,40 @@
       "input_total": 2,
       "output_accounted": 15,
       "timing_ms": 59725
+    },
+    "2025-09-14-056": {
+      "timestamp": "2025-09-14T16:03:47.292427",
+      "category": "Technology",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 15,
+      "timing_ms": 28117
     }
   },
   "totals": {
-    "total_batches": 102,
-    "total_keywords_processed": 7127,
-    "total_keywords_output": 656,
+    "total_batches": 103,
+    "total_keywords_processed": 7130,
+    "total_keywords_output": 671,
     "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 1116134,
-    "total_keywords_with_evidence": 583,
-    "total_evidence_items": 1037,
+    "total_timing_ms": 1144251,
+    "total_keywords_with_evidence": 598,
+    "total_evidence_items": 1054,
     "total_keywords_dropped_with_evidence": 0,
     "total_keywords_dropped_no_evidence": 0
   },
   "categories": {
     "industry": {
-      "batches": 92,
-      "keywords": 215
+      "batches": 93,
+      "keywords": 220
     },
     "company": {
-      "batches": 92,
-      "keywords": 215
+      "batches": 93,
+      "keywords": 220
     },
     "regulatory": {
-      "batches": 92,
-      "keywords": 196
+      "batches": 93,
+      "keywords": 201
     }
   },
   "search": {

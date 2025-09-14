@@ -954,24 +954,42 @@ def export_batch_results_csv(group_id: str):
         output = io.StringIO()
         writer = csv_module.writer(output)
         
-        # Write headers
+        # Write headers - exact required schema
         headers = [
-            'Keyword', 'Category', 'Region Mode', 'Country', 'Flags (JSON)', 
-            'Top Evidence Title', 'Top Evidence URL', 'Top Evidence Score', 
-            'Days Since Published', 'Debug Query', 'Batch ID'
+            'Keyword', 'Category', 'RegionMode', 'CountryToken', 'BuiltQuery', 
+            'FlagTypes', 'TopScore', 'TopSource', 'PublishedDate', 'EvidenceCount'
         ]
         writer.writerow(headers)
         
         # Process all batch results
         for batch_result in results:
-            final_result = batch_result.get('final_result', {})
-            flags = final_result.get('flags', {})
-            evidence_refs = final_result.get('evidence_refs', {})
-            debug_queries = final_result.get('debug_queries', {})
-            region_scope = final_result.get('region_scope', {})
+            # Access fields directly from batch_result (not final_result)
+            flags = batch_result.get('flags', {})
+            evidence_refs = batch_result.get('evidence_refs', {})
+            debug_queries = batch_result.get('debug_queries', {})
+            region_scope = batch_result.get('region_scope', {})
+            updated = batch_result.get('updated', {})
             batch_id = batch_result.get('batch_id', 'unknown')
             
-            for keyword in flags.keys():
+            # Get all keywords from multiple sources (flags, evidence_refs, updated, debug_queries)
+            all_keywords = set()
+            all_keywords.update(flags.keys())
+            all_keywords.update(evidence_refs.keys())
+            all_keywords.update(updated.keys())
+            all_keywords.update(debug_queries.keys())
+            all_keywords.update(region_scope.keys())
+            
+            # Debug logging to understand the data structure
+            current_app.logger.info(f"Processing batch {batch_id}: flags={len(flags)}, evidence_refs={len(evidence_refs)}, updated={len(updated)}, debug_queries={len(debug_queries)}, region_scope={len(region_scope)}")
+            
+            # If no keywords found in any of the above, log and skip this batch
+            if not all_keywords:
+                current_app.logger.warning(f"No keywords found in batch {batch_id}, skipping")
+                continue
+            
+            current_app.logger.info(f"Found {len(all_keywords)} keywords in batch {batch_id}: {list(all_keywords)[:5]}...")  # Log first 5 keywords
+            
+            for keyword in all_keywords:
                 # Get flag information
                 keyword_flags = flags.get(keyword, [])
                 flags_json = json.dumps(keyword_flags) if keyword_flags else ""
@@ -981,53 +999,48 @@ def export_batch_results_csv(group_id: str):
                 region_mode = region_info.get('mode', 'global')
                 country = region_info.get('country', '')
                 
-                # Get top evidence
+                # Get top evidence and calculate required fields
                 keyword_evidence = evidence_refs.get(keyword, [])
-                top_evidence_title = ""
-                top_evidence_url = ""
-                top_evidence_score = ""
-                days_since_published = ""
+                top_source = ""
+                top_score = ""
+                published_date = ""
+                evidence_count = len(keyword_evidence)
                 
                 if keyword_evidence:
                     # Sort by score and take the top one
                     sorted_evidence = sorted(keyword_evidence, key=lambda x: x.get('score', 0), reverse=True)
                     top_evidence = sorted_evidence[0]
                     
-                    top_evidence_title = top_evidence.get('title', '')[:100]  # Truncate long titles
-                    top_evidence_url = top_evidence.get('url', '')
-                    top_evidence_score = str(top_evidence.get('score', ''))
+                    top_source = top_evidence.get('title', '')[:100]  # Use title as source, truncate long titles
+                    top_score = str(top_evidence.get('score', ''))
                     
-                    # Calculate days since published
+                    # Get published date in original format (not days since)
                     published_date = top_evidence.get('published_date', '')
-                    if published_date:
-                        try:
-                            from datetime import datetime
-                            pub_date = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
-                            current_date = datetime.now(pub_date.tzinfo)
-                            days_diff = (current_date - pub_date).days
-                            days_since_published = str(days_diff)
-                        except:
-                            days_since_published = "unknown"
                 
-                # Get debug query
-                debug_query = debug_queries.get(keyword, '')
+                # Get built query (debug query)
+                built_query = debug_queries.get(keyword, '')
                 
                 # Determine category (default to industry if not specified)
                 category = 'industry'  # Default from CSV processing
                 
-                # Write row
+                # Format flag types - extract just the type names from flags
+                flag_types = ""
+                if keyword_flags:
+                    flag_type_list = [flag.get('type', '') for flag in keyword_flags if flag.get('type')]
+                    flag_types = ",".join(flag_type_list) if flag_type_list else ""
+                
+                # Write row with exact required schema
                 writer.writerow([
                     keyword,
                     category,
                     region_mode,
-                    country,
-                    flags_json,
-                    top_evidence_title,
-                    top_evidence_url,
-                    top_evidence_score,
-                    days_since_published,
-                    debug_query,
-                    batch_id
+                    country,  # CountryToken
+                    built_query,  # BuiltQuery
+                    flag_types,  # FlagTypes
+                    top_score,  # TopScore
+                    top_source,  # TopSource
+                    published_date,  # PublishedDate
+                    evidence_count  # EvidenceCount
                 ])
         
         # Create response

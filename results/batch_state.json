@@ -95,6 +95,288 @@
       "completed_batches": 0,
       "failed_batches": 1,
       "in_progress_batches": 0
+    },
+    "csv-20250914-154705-c9f899a5": {
+      "group_id": "csv-20250914-154705-c9f899a5",
+      "total_batches": 1,
+      "total_keywords": 7,
+      "created_at": "2025-09-14T15:47:05.478264",
+      "status": "completed_with_errors",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-154705-c9f899a5-batch-001",
+          "keywords": [
+            {
+              "keyword": "Allianz",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Short-term Insurance",
+              "category": "industry",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "AIG",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "1st for Women",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Prudential Authority",
+              "category": "regulatory",
+              "region_mode": "EXCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "4 Sure Insurance",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Motor vehicle insurance",
+              "category": "industry",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 7,
+          "status": "pending",
+          "created_at": "2025-09-14T15:47:05.478030",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 0,
+      "failed_batches": 1,
+      "in_progress_batches": 0
+    },
+    "csv-20250914-154948-a9a46a1e": {
+      "group_id": "csv-20250914-154948-a9a46a1e",
+      "total_batches": 1,
+      "total_keywords": 7,
+      "created_at": "2025-09-14T15:49:48.995265",
+      "status": "completed_with_errors",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-154948-a9a46a1e-batch-001",
+          "keywords": [
+            {
+              "keyword": "Allianz",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Short-term Insurance",
+              "category": "industry",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "AIG",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "1st for Women",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Prudential Authority",
+              "category": "regulatory",
+              "region_mode": "EXCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "4 Sure Insurance",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Motor vehicle insurance",
+              "category": "industry",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 7,
+          "status": "pending",
+          "created_at": "2025-09-14T15:49:48.994946",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 0,
+      "failed_batches": 1,
+      "in_progress_batches": 0
+    },
+    "csv-20250914-155046-2fd74979": {
+      "group_id": "csv-20250914-155046-2fd74979",
+      "total_batches": 1,
+      "total_keywords": 7,
+      "created_at": "2025-09-14T15:50:46.916220",
+      "status": "completed_with_errors",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-155046-2fd74979-batch-001",
+          "keywords": [
+            {
+              "keyword": "Allianz",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Short-term Insurance",
+              "category": "industry",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "AIG",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "1st for Women",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Prudential Authority",
+              "category": "regulatory",
+              "region_mode": "EXCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "4 Sure Insurance",
+              "category": "company",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "Motor vehicle insurance",
+              "category": "industry",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 7,
+          "status": "pending",
+          "created_at": "2025-09-14T15:50:46.916208",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 0,
+      "failed_batches": 1,
+      "in_progress_batches": 0
+    },
+    "csv-20250914-155408-7fbb6ece": {
+      "group_id": "csv-20250914-155408-7fbb6ece",
+      "total_batches": 1,
+      "total_keywords": 3,
+      "created_at": "2025-09-14T15:54:08.729790",
+      "status": "completed",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-155408-7fbb6ece-batch-001",
+          "keywords": [
+            {
+              "keyword": "Tesla",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "Apple Inc",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "Microsoft Corp",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 3,
+          "status": "pending",
+          "created_at": "2025-09-14T15:54:08.729778",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 1,
+      "failed_batches": 0,
+      "in_progress_batches": 0
+    },
+    "csv-20250914-160206-0a4fe5c0": {
+      "group_id": "csv-20250914-160206-0a4fe5c0",
+      "total_batches": 1,
+      "total_keywords": 3,
+      "created_at": "2025-09-14T16:02:06.004844",
+      "status": "completed",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-160206-0a4fe5c0-batch-001",
+          "keywords": [
+            {
+              "keyword": "Tesla",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "Apple Inc",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "Microsoft Corp",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 3,
+          "status": "pending",
+          "created_at": "2025-09-14T16:02:06.004831",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 1,
+      "failed_batches": 0,
+      "in_progress_batches": 0
     }
   },
   "batch_results": {
@@ -119,6 +401,111 @@
       "started_at": null,
       "completed_at": "2025-09-14T15:41:28.768332",
       "result_data": null
+    },
+    "csv-20250914-154705-c9f899a5-batch-001": {
+      "batch_id": "csv-20250914-154705-c9f899a5-batch-001",
+      "status": "failed",
+      "keywords_processed": 0,
+      "success": false,
+      "timing_ms": 0,
+      "error": "Working outside of application context.\n\nThis typically means that you attempted to use functionality that needed\nthe current application. To solve this, set up an application context\nwith app.app_context(). See the documentation for more information.",
+      "started_at": null,
+      "completed_at": "2025-09-14T15:47:05.479571",
+      "result_data": null
+    },
+    "csv-20250914-154948-a9a46a1e-batch-001": {
+      "batch_id": "csv-20250914-154948-a9a46a1e-batch-001",
+      "status": "failed",
+      "keywords_processed": 0,
+      "success": false,
+      "timing_ms": 0,
+      "error": "Working outside of application context.\n\nThis typically means that you attempted to use functionality that needed\nthe current application. To solve this, set up an application context\nwith app.app_context(). See the documentation for more information.",
+      "started_at": null,
+      "completed_at": "2025-09-14T15:49:48.996924",
+      "result_data": null
+    },
+    "csv-20250914-155046-2fd74979-batch-001": {
+      "batch_id": "csv-20250914-155046-2fd74979-batch-001",
+      "status": "failed",
+      "keywords_processed": 0,
+      "success": false,
+      "timing_ms": 4460,
+      "error": "Pipeline processing failed: Unknown error",
+      "started_at": null,
+      "completed_at": "2025-09-14T15:50:51.377782",
+      "result_data": null
+    },
+    "csv-20250914-155408-7fbb6ece-batch-001": {
+      "batch_id": "csv-20250914-155408-7fbb6ece-batch-001",
+      "status": "completed",
+      "keywords_processed": 3,
+      "success": true,
+      "timing_ms": 3317,
+      "error": null,
+      "started_at": null,
+      "completed_at": "2025-09-14T15:54:12.050252",
+      "result_data": {
+        "success": true,
+        "error": null,
+        "updated": {},
+        "removed": [],
+        "flags": {},
+        "justification": "All 0 keywords retained with appropriate flags. Flagged 0 keywords with quality issues. Evidence evaluated for 0 keywords.",
+        "evidence_refs": {},
+        "debug_queries": {},
+        "region_scope": {},
+        "guardrails": {
+          "leaks_blocked": [],
+          "duplicates_dropped": [],
+          "completeness_check": {
+            "is_complete": true,
+            "missing_keywords": []
+          },
+          "counts": {
+            "input_total": 0,
+            "output_accounted": 0,
+            "leaks_blocked": 0,
+            "duplicates_dropped": 0,
+            "flags_total": 0
+          }
+        }
+      }
+    },
+    "csv-20250914-160206-0a4fe5c0-batch-001": {
+      "batch_id": "csv-20250914-160206-0a4fe5c0-batch-001",
+      "status": "completed",
+      "keywords_processed": 3,
+      "success": true,
+      "timing_ms": 3005,
+      "error": null,
+      "started_at": null,
+      "completed_at": "2025-09-14T16:02:09.025892",
+      "result_data": {
+        "success": true,
+        "error": null,
+        "updated": {},
+        "removed": [],
+        "flags": {},
+        "justification": "All 0 keywords retained with appropriate flags. Flagged 0 keywords with quality issues. Evidence evaluated for 0 keywords.",
+        "evidence_refs": {},
+        "debug_queries": {},
+        "region_scope": {},
+        "guardrails": {
+          "leaks_blocked": [],
+          "duplicates_dropped": [],
+          "completeness_check": {
+            "is_complete": true,
+            "missing_keywords": []
+          },
+          "counts": {
+            "input_total": 0,
+            "output_accounted": 0,
+            "leaks_blocked": 0,
+            "duplicates_dropped": 0,
+            "flags_total": 0
+          }
+        }
+      }
     }
   }
 }
