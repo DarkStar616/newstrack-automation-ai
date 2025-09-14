@@ -45,6 +45,26 @@ def should_bypass_cache() -> bool:
     return get_bool("SEARCH_BYPASS_CACHE", default=False)
 
 
+def get_region_mode() -> str:
+    """Get region filtering mode. Defaults to 'global'."""
+    return os.getenv("REGION_MODE", "global")
+
+
+def get_region_country() -> str:
+    """Get target country for region filtering. Defaults to 'South Africa'."""
+    return os.getenv("REGION_COUNTRY", "South Africa")
+
+
+def get_query_strategy() -> str:
+    """Get query construction strategy. Defaults to 'sector_keyword_region'."""
+    return os.getenv("QUERY_STRATEGY", "sector_keyword_region")
+
+
+def is_region_filter_enabled() -> bool:
+    """Check if region filtering is enabled."""
+    return get_bool("REGION_FILTER_ENABLED", default=True)
+
+
 def get_perplexity_key() -> str:
     """Get Perplexity API key from environment."""
     return os.getenv("PERPLEXITY_API_KEY", "")
@@ -73,7 +93,14 @@ def log_search_config():
     cache_ttl = get_cache_ttl_days()
     bypass_cache = should_bypass_cache()
     
+    # Region settings
+    region_mode = get_region_mode()
+    region_country = get_region_country()
+    query_strategy = get_query_strategy()
+    region_filter = is_region_filter_enabled()
+    
     print(f"EvidenceMode: provider={provider} default_mode={mode} llm_test={llm_test} search_test={search_test} cache_ttl={cache_ttl} bypass_cache={bypass_cache}")
+    print(f"RegionConfig: mode={region_mode} country={region_country} query_strategy={query_strategy} filter_enabled={region_filter}")
     
     if mode != "off":
         if provider == "google":

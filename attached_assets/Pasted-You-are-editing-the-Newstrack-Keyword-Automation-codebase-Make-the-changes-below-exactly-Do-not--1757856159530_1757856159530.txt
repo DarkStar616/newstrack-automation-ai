@@ -1,0 +1,298 @@
+You are editing the “Newstrack Keyword Automation” codebase. Make the changes below exactly. Do not invent endpoints or UI we don’t have — modify existing modules and add small, well-scoped utilities only.
+
+Goals (must all be true)
+
+Flag, don’t drop. The app must never delete user keywords during Step 3. Instead we keep all inputs and attach machine-generated flags with reasons and evidence pointers.
+
+Excel “Source location” rule. Read the “Source location” field from the uploaded Excel (same structure as Short-Term Insurance Demo_ReconciliationExport_*.xls). Apply it during evidence gathering and scoring as:
+
+"" (blank): include all regions.
+
+"South Africa": include only content from South Africa.
+
+"!South Africa": include all regions except South Africa.
+Where a strict region filter is not reliably possible at query time, post-filter and/or down-weight by region and add a flag if nothing matches the rule.
+
+Cookbook flow compliance. Preserve the 3-step flow: (1) Categorize, (2) Expand, (3) Currency validation with live evidence. Respect runtime settings (provider, recency months, max results).
+
+One canonical guardrails block. Emit one guardrails object at the top level with counts and completeness; remove the second, conflicting one inside final_result.
+
+UI transparency. In the Step 3 results list, show small “flag badges” on each keyword (hover to see details), and surface the Source-location scope next to the chip (e.g., “Scope: ZA only”, “Scope: Global \ ZA excluded”).
+
+No provider backslide. Keep LIVE as default; no silent test fallbacks.
+
+Data Model & Output Contract
+
+Keep the existing JSON shape but change semantics:
+
+final_result.updated: the set of kept keywords (which is now all inputs) grouped by category.
+
+Add final_result.flags: map <keyword> → [flag objects].
+
+Keep final_result.evidence_refs as today.
+
+final_result.removed MUST always be []. (Legacy clients expect the field; keep it but empty.)
+
+Flag object schema (add to a new src/types/flags.py and use everywhere):
+
+{
+  "type": "off_topic" | "stale" | "wrong_region" | "region_scope_unmet" | "wrong_domain" | "ambiguous_scope" | "weak_evidence" | "low_confidence",
+  "severity": "info" | "warn" | "block",
+  "reason": "string, concise human explanation",
+  "evidence_idx": [0,2],             // optional: which evidence_refs entries triggered it
+  "days_out_of_window": 96,          // for stale
+  "expected_region": "South Africa", // for region flags
+  "actual_region": "United States"   // best-guess from source
+}
+
+
+Guardrails (top-level only):
+
+"guardrails": {
+  "counts": {
+    "input_total": <int>,
+    "output_accounted": <int>,   // should equal input_total
+    "duplicates_dropped": 0,
+    "flags_total": <int>
+  },
+  "completeness_check": {
+    "is_complete": true,
+    "missing_keywords": []
+  }
+}
+
+Implementation Details
+
+Excel ingestion
+
+Add src/utils/excel_ingest.py with a loader that accepts .xls/.xlsx via pandas if available; otherwise fall back to openpyxl or xlrd if installed. Expose:
+
+def load_keywords(path) -> List[{"keyword": str, "category": str|None, "source_location": str|None}]
+
+
+Columns to parse:
+
+Keyword (string)
+
+Category (optional: company/industry/regulatory)
+
+Source location (exactly as Brendon defined: blank | South Africa | !South Africa).
+
+If the sheet lacks columns, default category=None, source_location="".
+
+Region handling
+
+Create src/utils/region.py with:
+
+infer_region(url, snippet, title) -> str|None (use TLD, host mapping (e.g., .co.za → South Africa), and light NLP on snippet).
+
+scope_allows(expected_rule, actual_region) -> bool implementing the 3 rules above.
+
+Evidence pipeline:
+
+At gather time, add region_guess to each evidence item.
+
+After gather, filter or down-weight based on Source location:
+
+"South Africa": keep ZA; if none remain, keep best few globally but add region_scope_unmet (severity=warn) flag.
+
+"!South Africa": remove ZA; if all were ZA, keep none and add region_scope_unmet (warn).
+
+"": no filter.
+
+Always compute flags for mismatches: wrong_region (warn).
+
+Currency window
+
+Keep recency_window_months (default 3). For any evidence with published_date older than the window, retain it but mark the keyword with a single stale flag. Compute days_out_of_window.
+
+Domain fitness (P&C vs Health)
+
+Add a light rule set: if keyword category is industry/company/regulatory for short-term P&C, and evidence mentions “short-term health insurance / STLDI / ACA / HHS / Obamacare”, add wrong_domain (block) and down-weight such evidence from scoring.
+
+Step 3 decisioning
+
+For each keyword:
+
+Never remove. Always keep it in updated under its category (from Excel if given; else infer).
+
+Produce zero or more flags using the rules above.
+
+If all three evidence items are (off_topic OR wrong_region OR wrong_domain), add weak_evidence (warn).
+
+UI
+
+In the evidence list, add a right-aligned “Flags (n)” badge; clicking shows a small popover listing each flag’s type • severity • reason.
+
+Next to each keyword chip, show Scope: ZA only, Scope: Global, or Scope: Global (ZA excluded) derived from Source location.
+
+Consistency fixes
+
+Remove the inner guardrails block from final_result. Emit only the top-level version.
+
+Ensure output_accounted == input_total after the keep-all change.
+
+Regression notes from current JSON (add unit tests)
+
+1st for Women → off_topic (block) because evidence is unrelated to the brand.
+
+4 Sure Insurance → stale (warn); do not remove.
+
+AIM Insurance → has 2025-07-03 evidence; should be kept with no stale flag.
+
+Prudential Authority → kept; if mixing SA/UK PRA, use ambiguous_scope (info) and prefer SA evidence.
+
+Short-term Insurance (industry) → evidence is US STLDI health; mark wrong_domain (block) and prefer ZA P&C sources.
+
+Files to touch
+
+src/utils/search_client.py (inject region inference + filters, keep evidence array intact).
+
+src/utils/config.py (no change to defaults except new region_filter_enabled: true).
+
+src/types/flags.py (new).
+
+src/utils/region.py (new).
+
+src/utils/excel_ingest.py (new).
+
+api/handlers.py or equivalent controller to:
+
+Replace “removed” flow with flag generation.
+
+Ensure single guardrails block.
+
+Add Source-location to each keyword’s context for the frontend.
+
+frontend:
+
+Add flag badges and Source-location scope label in Step 3 list.
+
+Add a tooltip legend describing each flag type.
+
+Acceptance tests (must pass)
+
+When given the attached XLS where Source location = "South Africa", all “Short-term Insurance” industry evidence from US STLDI is filtered out and keyword receives wrong_domain (block).
+
+For “4 Sure Insurance” with last hit 2025-06-10 and window=3 months at 2025-09-14 → keyword is kept, flagged stale (warn), days_out_of_window≈96.
+
+For “AIM Insurance” with 2025-07-03 hit → no stale flag; keyword present in updated.company.
+
+For any keyword with only irrelevant items (e.g., “1st for Women” as in the sample) → off_topic (block) + weak_evidence (warn); still kept.
+
+Output JSON contains no final_result.guardrails; only the top-level guardrails exists and output_accounted == input_total.
+
+UI shows the new flag badges and the Source-location scope string.
+
+Stop when all of the above are implemented and validated by running the existing end-to-end flow in Live mode.
+
+Additions: Sector + Keyword + Region Toggle
+New runtime config
+
+Add to src/utils/config.py:
+
+{
+  "region_mode": "global",          // "global" | "country" | "exclude_country"
+  "region_country": "South Africa", // used when region_mode != "global"
+  "query_strategy": "sector_keyword_region" // feature flag
+}
+
+UI toggle
+
+In the Evidence Mode Settings panel, add a Region scope control:
+
+Radio buttons: Global / Country / Exclude Country
+
+If Country or Exclude selected, show a country select (default “South Africa”).
+
+Persist to runtime_config.region_mode and runtime_config.region_country.
+
+Query construction (Gemini search grounding)
+
+Modify src/utils/search_client.py:
+
+For each keyword, build 1–3 queries depending on region_mode:
+
+BASE: "<sector> | short-term P&C | insurance"     // sector normalizer
+K:    "<keyword>"
+
+If region_mode == "global":
+  Q1: K + " " + BASE
+  Q2: K + " " + BASE + " latest news"
+  Q3: K + " " + BASE + " 2025"
+
+If region_mode == "country":
+  C  = runtime_config.region_country      // e.g., "South Africa"
+  Q1: K + " " + BASE + " " + C
+  Q2: K + " " + BASE + " site:(*.co.za OR *.za) OR (\"South Africa\")"
+  Q3: K + " " + BASE + " latest news " + C
+
+If region_mode == "exclude_country":
+  C  = runtime_config.region_country
+  Q1: K + " " + BASE + " -\""+C+"\" -site:*.za -site:*.co.za"
+  Q2: K + " " + BASE + " latest news -\""+C+"\""
+  Q3: K + " " + BASE + " 2025 -\""+C+"\""
+
+
+When calling Gemini w/ Google grounding, pass the queries in priority order; de-dupe results by URL host.
+
+Keep existing post-filter + flags (region/wrong_domain/stale), but now the pre-filter should already cut most noise.
+
+Region reasoning still applies
+
+Keep region.py inference for safety. Even if the query tries to steer region, we still:
+
+Drop/penalize items that violate exclude_country.
+
+Prefer exact country matches when region_mode == "country".
+
+Add region_scope_unmet flag if we can’t satisfy the scope (and retain best global fallback).
+
+Scoring tweaks
+
+Add src/utils/ranking.py weightings:
+
++3 if region_mode == "country" and actual_region == region_country
+
+-4 if region_mode == "exclude_country" and actual_region == region_country
+
++2 if domain TLD suggests match (e.g., .co.za for South Africa)
+
+-3 if wrong_domain (health) terms matched
+
++1 if title contains both sector cue (“insurance”, “underwriting”, “claims”) and keyword
+
+Output/flags unchanged
+
+Still flag-only (no removals).
+
+Continue emitting one canonical guardrails block (top-level).
+
+Evidence refs remain capped by max_results_per_keyword.
+
+Acceptance tests (add)
+
+Country mode (ZA) for Short-term Insurance:
+
+Top evidence hosts are ZA-leaning (.co.za) or clearly ZA; no US STLDI items.
+
+No wrong_region flags; no wrong_domain (health) in top 3.
+
+Exclude ZA for Allianz:
+
+No .za or mentions of “South Africa” in the top results; if any slip through, keyword gets wrong_region (warn) and result down-weighted.
+
+Global for AIG:
+
+Mixed regions allowed; no region flags unless the Excel says otherwise (Source location overrides still apply).
+
+Excel Source location vs toggle:
+
+If the Excel row has Source location set, Excel wins and the UI shows a small lock icon (“scope from file”). Toggle is disabled for that row.
+
+If Excel is blank, the toggle drives the behavior; scope label shown as “Global / Country: ZA / Excluding: ZA”.
+
+Small UX additions
+
+Under the Region scope control, show a hint:
+“We prepend your sector & region to the search (e.g., ‘short-term P&C insurance’ + country). Off-topic matches are still flagged, never dropped.”

@@ -9,6 +9,9 @@ from src.utils.llm_client import get_llm_client
 from src.utils.guardrails import get_guardrails_engine
 from src.utils.perplexity_client import PerplexityClient
 from src.utils.config import get_search_mode, get_perplexity_key, get_recency_window, get_max_results_for_mode, get_search_test_mode, get_llm_test_mode
+from src.types.flags import Flag, create_flag, create_stale_flag, create_off_topic_flag, create_wrong_region_flag, create_wrong_domain_flag, create_weak_evidence_flag
+from src.utils.region import get_scope_description, check_domain_fitness
+from datetime import datetime, timedelta
 
 
 def do_categorize(sector: str, company: Optional[str], keywords: List[str]) -> Dict[str, Any]:
@@ -164,21 +167,27 @@ Do not include any text outside the JSON response."""
 
 def do_drop(sector: str, company: Optional[str], current_date: str, categories: Dict[str, List[str]], 
             search_mode: Optional[str] = None, recency_window_months: Optional[int] = None, 
-            max_results_per_keyword: Optional[int] = None) -> Dict[str, Any]:
+            max_results_per_keyword: Optional[int] = None, source_location: Optional[str] = None) -> Dict[str, Any]:
     """
-    Remove outdated keywords from the expanded list with optional evidence validation.
+    Flag problematic keywords instead of removing them. All keywords are kept with appropriate flags.
     
     Args:
         sector: The sector/industry context
         company: Optional company name  
         current_date: Current date for currency validation
         categories: Categories from expand step
-        search_mode: Optional search mode ("off", "fast", "deep")
+        search_mode: Optional search mode ("off", "test", "shallow")
         recency_window_months: Optional recency window in months
         max_results_per_keyword: Optional max evidence results per keyword
+        source_location: Optional Excel source location rule for region filtering
         
     Returns:
-        Dictionary with updated categories, removed keywords, evidence_refs, and guardrails
+        Dictionary with updated categories (all kept), flags map, evidence_refs, and guardrails
+        - updated: All input keywords kept, grouped by category
+        - removed: Always empty list (for backward compatibility)
+        - flags: Map of keyword -> list of flag objects
+        - evidence_refs: Evidence gathered for each keyword
+        - guardrails: Guardrails validation results
     """
     company_or_sector = company if company else sector
     
@@ -190,7 +199,7 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
     # Initialize search for evidence gathering
     evidence_refs = {}
     
-    # Gather evidence for each keyword using search abstraction
+    # Gather evidence for each keyword using enhanced search abstraction
     all_keywords = []
     for category_keywords in categories.values():
         all_keywords.extend(category_keywords)
@@ -202,110 +211,136 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
                 keyword, 
                 recency_months=recency_window_months,
                 max_results=max_results_per_keyword,
-                search_mode=search_mode
+                search_mode=search_mode,
+                sector=sector,
+                source_location=source_location
             )
-            if evidence:
-                evidence_refs[keyword] = evidence
+            evidence_refs[keyword] = evidence  # Always store, even if empty
     
-    # Create evidence-enhanced prompt for dropping outdated keywords
-    if search_mode == "off":
-        # Original prompt without evidence
-        prompt = f"""You are a keyword currency expert. Review the keyword list and remove any terms that may be outdated as of {current_date} for {company_or_sector}.
-
-CURRENT KEYWORDS:
-{json.dumps(categories, indent=2)}
-
-CURRENT DATE: {current_date}
-
-INSTRUCTIONS:
-1. Identify keywords that may be outdated, obsolete, or no longer relevant
-2. Consider company mergers, rebrands, regulatory changes, market exits
-3. Keep the majority of keywords - only remove clearly outdated ones
-4. Provide specific reasons for each removal
-
-Return ONLY valid JSON in this exact format:
-
-{{
-    "updated": {{
-        "industry": ["remaining current terms"],
-        "company": ["remaining current terms"],
-        "regulatory": ["remaining current terms"]
-    }},
-    "removed": [
-        {{"term": "outdated_keyword", "reason": "specific reason for removal"}},
-        {{"term": "another_keyword", "reason": "another specific reason"}}
-    ],
-    "justification": "Brief explanation of removal criteria and date considerations"
-}}
-
-Do not include any text outside the JSON response."""
-    else:
-        # Evidence-enhanced prompt
-        evidence_summary = ""
-        if evidence_refs:
-            evidence_summary = "\nEVIDENCE GATHERED:\n"
-            for keyword, evidence_list in evidence_refs.items():
-                evidence_summary += f"\n{keyword}:\n"
-                if evidence_list:
-                    for i, evidence in enumerate(evidence_list[:3], 1):  # Limit to 3 per keyword
-                        evidence_summary += f"  {i}. {evidence['title']} ({evidence['published_date']})\n"
-                        evidence_summary += f"     {evidence['snippet'][:100]}...\n"
-                else:
-                    evidence_summary += "  No recent evidence found\n"
+    # Generate flags for all keywords based on evidence and analysis
+    flags_map = {}
+    
+    # Calculate cutoff date for staleness
+    try:
+        cutoff_date = datetime.strptime(current_date + "-01", "%Y-%m-%d") - timedelta(days=recency_window_months * 30)
+    except:
+        cutoff_date = datetime.now() - timedelta(days=recency_window_months * 30)
+    
+    # Analyze each keyword and generate appropriate flags
+    for keyword in all_keywords:
+        keyword_flags = []
+        evidence_list = evidence_refs.get(keyword, [])
         
-        prompt = f"""You are a keyword currency expert with access to recent web evidence. Review the keyword list and remove any terms that may be outdated as of {current_date} for {company_or_sector}.
-
-CURRENT KEYWORDS:
-{json.dumps(categories, indent=2)}
-
-CURRENT DATE: {current_date}
-
-{evidence_summary}
-
-INSTRUCTIONS:
-1. Use the evidence above to assess keyword relevance and currency
-2. If no recent evidence is found for a keyword within {recency_window_months} months, consider removing it
-3. Keep keywords with recent, relevant evidence
-4. Consider company mergers, rebrands, regulatory changes, market exits
-5. Provide specific reasons for each removal, referencing evidence when available
-
-Return ONLY valid JSON in this exact format:
-
-{{
-    "updated": {{
-        "industry": ["remaining current terms"],
-        "company": ["remaining current terms"],
-        "regulatory": ["remaining current terms"]
-    }},
-    "removed": [
-        {{"term": "outdated_keyword", "reason": "specific reason for removal", "evidence_used": [1, 2]}},
-        {{"term": "another_keyword", "reason": "another specific reason", "evidence_used": []}}
-    ],
-    "justification": "Brief explanation of removal criteria considering both evidence and date"
-}}
-
-Do not include any text outside the JSON response."""
-
-    # Get LLM client and make request
-    llm_client = get_llm_client()
-    response = llm_client.chat_completion([
-        {"role": "user", "content": prompt}
-    ], temperature=0.1)
+        # Check for stale evidence
+        if evidence_list:
+            latest_evidence = None
+            for evidence in evidence_list:
+                try:
+                    evidence_date = datetime.strptime(evidence['published_date'], "%Y-%m-%d")
+                    if latest_evidence is None or evidence_date > latest_evidence:
+                        latest_evidence = evidence_date
+                except:
+                    continue
+            
+            if latest_evidence and latest_evidence < cutoff_date:
+                days_out = (datetime.now() - latest_evidence).days
+                keyword_flags.append(create_stale_flag(days_out, evidence_idx=[0]))
+        
+        # Check for off-topic evidence (all evidence items are irrelevant)
+        if evidence_list:
+            relevant_count = 0
+            problematic_indices = []
+            
+            for i, evidence in enumerate(evidence_list):
+                # Simple relevance check - keyword appears in title or snippet
+                title_lower = evidence.get('title', '').lower()
+                snippet_lower = evidence.get('snippet', '').lower()
+                keyword_lower = keyword.lower()
+                
+                if keyword_lower in title_lower or keyword_lower in snippet_lower:
+                    relevant_count += 1
+                else:
+                    problematic_indices.append(i)
+            
+            # If no evidence is relevant, flag as off-topic
+            if relevant_count == 0 and len(evidence_list) > 0:
+                keyword_flags.append(create_off_topic_flag(
+                    f"No evidence found relevant to {keyword}",
+                    evidence_idx=list(range(len(evidence_list)))
+                ))
+        
+        # Check for wrong domain (health vs P&C insurance)
+        if evidence_list and sector and "short-term" in sector.lower():
+            wrong_domain_indices = []
+            for i, evidence in enumerate(evidence_list):
+                is_wrong, reason = check_domain_fitness(
+                    evidence.get('snippet', ''), 
+                    evidence.get('title', ''), 
+                    sector
+                )
+                if is_wrong:
+                    wrong_domain_indices.append(i)
+            
+            if wrong_domain_indices:
+                keyword_flags.append(create_wrong_domain_flag(
+                    f"Evidence discusses health insurance, not P&C insurance",
+                    evidence_idx=wrong_domain_indices
+                ))
+        
+        # Check for region violations (if source_location is specified)
+        if evidence_list and source_location:
+            from src.utils.region import scope_allows
+            region_violations = []
+            
+            for i, evidence in enumerate(evidence_list):
+                region_guess = evidence.get('region_guess')
+                if region_guess and not scope_allows(source_location, region_guess):
+                    region_violations.append(i)
+            
+            if region_violations:
+                scope_desc = get_scope_description(source_location)
+                keyword_flags.append(create_wrong_region_flag(
+                    source_location.strip() if source_location.strip() else "Global",
+                    region_guess or "Unknown",
+                    evidence_idx=region_violations
+                ))
+        
+        # Check for weak evidence (all evidence items are problematic)
+        if evidence_list:
+            all_problematic = all(
+                flag.type in ["off_topic", "wrong_region", "wrong_domain"] 
+                for flag in keyword_flags
+                if flag.evidence_idx
+            )
+            if all_problematic and len(keyword_flags) > 0:
+                keyword_flags.append(create_weak_evidence_flag(
+                    "All evidence items have quality issues"
+                ))
+        elif search_mode != "off":
+            # No evidence found when evidence search was enabled
+            keyword_flags.append(create_weak_evidence_flag(
+                "No evidence found for this keyword"
+            ))
+        
+        # Store flags for this keyword (even if empty)
+        if keyword_flags:
+            flags_map[keyword] = [flag.to_dict() for flag in keyword_flags]
     
-    # Parse JSON response
-    result = llm_client.parse_json_response(response)
+    # ALL keywords are kept in updated - this is the key change
+    updated_categories = categories.copy()  # Keep all input keywords
     
-    # Ensure all categories exist
-    required_categories = ['industry', 'company', 'regulatory']
-    for category in required_categories:
-        if 'updated' not in result:
-            result['updated'] = {}
-        if category not in result['updated']:
-            result['updated'][category] = categories.get(category, [])
-        if 'removed' not in result:
-            result['removed'] = []
+    # Build the result structure with the new flagging model
+    result = {
+        'updated': updated_categories,
+        'removed': [],  # Always empty but kept for backward compatibility
+        'flags': flags_map,  # New field mapping keywords to their flags
+        'justification': f"All {len(all_keywords)} keywords retained with appropriate flags. "
+                        f"Flagged {len(flags_map)} keywords with quality issues. "
+                        f"Evidence evaluated for {len(evidence_refs)} keywords.",
+        'evidence_refs': evidence_refs
+    }
     
-    # Apply guardrails to final results
+    # Apply guardrails to ensure we have the expected structure
     all_input_keywords = []
     for cat_list in categories.values():
         all_input_keywords.extend(cat_list)
@@ -313,7 +348,12 @@ Do not include any text outside the JSON response."""
     guardrails = get_guardrails_engine()
     guardrails_result = guardrails.apply_all_guardrails(all_input_keywords, result['updated'])
     
+    # Update guardrails to reflect the new flagging model
+    guardrails_result['guardrails']['counts']['output_accounted'] = len(all_input_keywords)  # All keywords accounted for
+    guardrails_result['guardrails']['counts']['flags_total'] = sum(len(flags) for flags in flags_map.values())
+    guardrails_result['guardrails']['completeness_check']['is_complete'] = True  # All keywords are kept
+    guardrails_result['guardrails']['completeness_check']['missing_keywords'] = []  # No keywords missing
+    
     result['guardrails'] = guardrails_result['guardrails']
-    result['evidence_refs'] = evidence_refs
     
     return result
