@@ -1,0 +1,43 @@
+Update the frontend to display API results clearly.
+
+Goals
+1) After calling /api/process-all, render:
+   - Step 1: categories + explanations (3 columns: Industry, Company, Regulatory)
+   - Step 2: expanded terms per category
+   - Step 3: updated (kept) + removed (with reasons)
+   - Guardrails: input_total, output_accounted, duplicates_dropped, leaks_blocked, completeness (missing list)
+   - Evidence Mode (if present): show evidence_refs per keyword as a collapsible list with title + URL + date + snippet
+   - Raw JSON toggle
+
+2) Non-breaking change: keep existing layout and “Processing Metadata” banner; just fill a new Results panel under it.
+
+3) Add small controls (front-end only, pass-through to request):
+   - Search Mode select: off | test | shallow | deep  (default from env)
+   - Recency Window (months): numeric (default from env)
+   - Max results per keyword: 3 or 6 (default from env)
+   These controls should be optional; if left blank, don’t include them in the POST body.
+
+Changes
+- In index.html and any linked JS, after the fetch to /api/process-all:
+  * Parse JSON safely (try/catch).
+  * Build HTML with:
+     <details> blocks (summary titles) for each step.
+     <table> for categories/expanded/updated.
+     <ul> for removed with reasons.
+     Guardrails summary box (counts + completeness).
+     Evidence section:
+       For each keyword in evidence_refs, <details><summary>keyword</summary><ul>items…</ul></details>
+       Each evidence item shows: title (link), published_date, snippet, provider.
+  * Add a “Show raw JSON” button that toggles a <pre> with JSON.stringify(res, null, 2).
+
+- Wire the three optional inputs:
+   name="search_mode"
+   name="recency_window_months"
+   name="max_results_per_keyword"
+  If value is non-empty, include it in the request body.
+
+Acceptance
+- Run from UI with 4–10 keywords.
+- See visible tables for categories/expanded/updated, guardrails counts, and evidence (if mode != off).
+- Raw JSON toggle works.
+- Leaving the new fields blank still works (uses backend defaults).
