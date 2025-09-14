@@ -225,15 +225,19 @@ def _process_raw_data(data: List[Dict[str, Any]]) -> List[Dict[str, Optional[str
             
         category = None
         if category_col and row.get(category_col):
-            category = str(row[category_col]).strip()
-            if category.lower() in ['nan', 'none', '', 'null']:
-                category = None
+            category_value = row.get(category_col)
+            if category_value is not None:
+                category = str(category_value).strip()
+                if category.lower() in ['nan', 'none', '', 'null']:
+                    category = None
         
         source_location = None  
         if source_location_col and row.get(source_location_col):
-            source_location = str(row[source_location_col]).strip()
-            if source_location.lower() in ['nan', 'none', '', 'null']:
-                source_location = None
+            source_location_value = row.get(source_location_col)
+            if source_location_value is not None:
+                source_location = str(source_location_value).strip()
+                if source_location.lower() in ['nan', 'none', '', 'null']:
+                    source_location = None
         
         results.append({
             'keyword': keyword,
@@ -266,7 +270,7 @@ def _normalize_category(category: Optional[str]) -> Optional[str]:
     if not category:
         return 'industry'  # Default category for CSV
         
-    category = category.lower().strip()
+    category = (category or '').lower().strip()
     
     # Map variations to standard categories
     if category in ['company', 'companies', 'corp', 'corporation']:
@@ -305,33 +309,38 @@ def extract_keywords_from_csv(csv_file: Union[str, io.StringIO, io.BytesIO]) -> 
         source_locations = {}
         region_stats = {"global": 0, "include": 0, "exclude": 0}
         
-        for item in raw_keywords:
-            keyword = item.get('keyword', '').strip()
-            category = item.get('category', '').strip()
-            source_location = item.get('source_location', '').strip()
-            
-            if not keyword:
-                continue
+        for i, item in enumerate(raw_keywords):
+            try:
+                keyword = str(item.get('keyword') or '').strip()
+                category = str(item.get('category') or '').strip()
+                source_location = str(item.get('source_location') or '').strip()
                 
-            # Parse source location according to spec
-            region_config = _parse_source_location(source_location)
-            
-            # Build processed keyword object
-            processed_keyword = {
-                'keyword': keyword,
-                'category': category or 'industry',
-                'region_mode': region_config['region_mode'],
-                'country': region_config['country']
-            }
-            
-            processed_keywords.append(processed_keyword)
-            source_locations[keyword] = region_config
-            
-            # Update stats
-            region_stats[region_config['region_mode'].lower()] += 1
-            
-            # Log per specification
-            logging.info(f"CSV row: {processed_keyword}")
+                if not keyword:
+                    continue
+                    
+                # Parse source location according to spec
+                region_config = _parse_source_location(source_location)
+                
+                # Build processed keyword object
+                processed_keyword = {
+                    'keyword': keyword,
+                    'category': category or 'industry',
+                    'region_mode': region_config['region_mode'],
+                    'country': region_config['country']
+                }
+                
+                processed_keywords.append(processed_keyword)
+                source_locations[keyword] = region_config
+                
+                # Update stats
+                region_stats[region_config['region_mode'].lower()] += 1
+                
+                # Log per specification
+                logging.info(f"CSV row: {processed_keyword}")
+                
+            except Exception as e:
+                logging.error(f"Error processing CSV row {i}: {item}, error: {str(e)}")
+                raise e
         
         return {
             'keywords': processed_keywords,
@@ -369,10 +378,10 @@ def _parse_source_location(source_location: str) -> Dict[str, Optional[str]]:
     - "X" -> region_mode="INCLUDE", country="X"
     - "!X" -> region_mode="EXCLUDE", country="X"
     """
-    if not source_location or source_location.lower() in ['na', 'null', 'none', '']:
+    if not source_location or (source_location and source_location.lower() in ['na', 'null', 'none', '']):
         return {'region_mode': 'GLOBAL', 'country': None}
     
-    source_location = source_location.strip()
+    source_location = (source_location or '').strip()
     
     if source_location.startswith('!'):
         # Exclude mode: "!South Africa" -> EXCLUDE South Africa
@@ -433,6 +442,139 @@ def create_batches(keywords: List[Dict[str, Any]], batch_size: int = 200) -> Dic
         'created_at': datetime.now().isoformat(),
         'status': 'created'
     }
+
+
+def analyze_csv_format(csv_file: Union[str, io.StringIO, io.BytesIO], preview_rows: int = 10) -> Dict[str, Any]:
+    """
+    Analyze CSV file format with detailed encoding and delimiter detection.
+    
+    Args:
+        csv_file: Path to CSV file or stream object
+        preview_rows: Number of rows to include in preview (default 10)
+        
+    Returns:
+        Dictionary with analysis results:
+        - valid: bool
+        - encoding_detected: str
+        - delimiter_detected: str
+        - headers: list
+        - preview_data: list of rows
+        - total_rows: int
+        - valid_keyword_count: int
+        - error: str (if invalid)
+    """
+    try:
+        # Handle different input types
+        if isinstance(csv_file, str):
+            with open(csv_file, 'rb') as f:
+                raw_data = f.read()
+        elif isinstance(csv_file, io.BytesIO):
+            csv_file.seek(0)
+            raw_data = csv_file.read()
+        elif isinstance(csv_file, io.StringIO):
+            raw_data = csv_file.getvalue().encode('utf-8')
+        else:
+            raise ValueError("Invalid input type for CSV file")
+        
+        # Detect encoding
+        encoding_result = chardet.detect(raw_data)
+        encoding = encoding_result['encoding'] or 'utf-8'
+        
+        # Handle common encoding variants
+        if encoding.lower() in ['ascii', 'windows-1252']:
+            encoding = 'windows-1252'
+        elif 'utf-8' in encoding.lower():
+            encoding = 'utf-8-sig' if raw_data.startswith(b'\xef\xbb\xbf') else 'utf-8'
+        
+        # Decode content
+        try:
+            content = raw_data.decode(encoding)
+        except UnicodeDecodeError:
+            # Fallback encoding chain
+            for fallback in ['utf-8', 'windows-1252', 'iso-8859-1']:
+                try:
+                    content = raw_data.decode(fallback)
+                    encoding = fallback
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                raise ValueError("Could not decode file with any supported encoding")
+        
+        # Detect delimiter by testing a sample
+        sample_lines = content.split('\n')[:5]  # Use first 5 lines for detection
+        sample_text = '\n'.join(sample_lines)
+        
+        sniffer = csv.Sniffer()
+        try:
+            delimiter = sniffer.sniff(sample_text, delimiters=',;\t').delimiter
+        except csv.Error:
+            # Fallback: count occurrences of each delimiter
+            delimiter_counts = {
+                ',': sum(line.count(',') for line in sample_lines),
+                ';': sum(line.count(';') for line in sample_lines),
+                '\t': sum(line.count('\t') for line in sample_lines)
+            }
+            delimiter = max(delimiter_counts, key=delimiter_counts.get)
+        
+        # Parse CSV content
+        csv_reader = csv.reader(io.StringIO(content), delimiter=delimiter)
+        rows = list(csv_reader)
+        
+        if not rows:
+            return {
+                'valid': False,
+                'error': 'CSV file is empty',
+                'encoding_detected': encoding,
+                'delimiter_detected': delimiter
+            }
+        
+        # Extract headers and data
+        headers = rows[0] if rows else []
+        data_rows = rows[1:] if len(rows) > 1 else []
+        
+        # Validate required columns
+        header_lower = [h.lower().strip() for h in headers]
+        has_keyword = any('keyword' in h for h in header_lower)
+        
+        if not has_keyword:
+            return {
+                'valid': False,
+                'error': 'CSV must contain a "Keyword" column',
+                'encoding_detected': encoding,
+                'delimiter_detected': delimiter,
+                'headers': headers
+            }
+        
+        # Count valid keywords (non-empty keyword column)
+        keyword_idx = next(i for i, h in enumerate(header_lower) if 'keyword' in h)
+        valid_keywords = sum(1 for row in data_rows if len(row) > keyword_idx and row[keyword_idx].strip())
+        
+        # Create preview data (limit to preview_rows)
+        preview_data = rows[:preview_rows + 1]  # +1 to include header
+        
+        return {
+            'valid': True,
+            'encoding_detected': encoding,
+            'delimiter_detected': repr(delimiter),  # Show as string representation
+            'headers': headers,
+            'preview_data': preview_data,
+            'total_rows': len(data_rows),
+            'valid_keyword_count': valid_keywords,
+            'error': None
+        }
+        
+    except Exception as e:
+        return {
+            'valid': False,
+            'error': str(e),
+            'encoding_detected': 'unknown',
+            'delimiter_detected': 'unknown',
+            'headers': [],
+            'preview_data': [],
+            'total_rows': 0,
+            'valid_keyword_count': 0
+        }
 
 
 def validate_csv_format(csv_file: Union[str, io.StringIO, io.BytesIO], max_rows: int = 25000) -> Dict[str, Any]:

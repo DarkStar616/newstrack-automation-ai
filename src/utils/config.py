@@ -10,19 +10,15 @@ def get_bool(env_var: str, default: bool = False) -> bool:
     return value in ("true", "1", "yes", "on")
 
 
-def get_llm_test_mode() -> bool:
-    """Get LLM test mode configuration. Test mode is opt-in only."""
-    return get_bool("LLM_TEST_MODE", default=False)
-
-
-def get_search_test_mode() -> bool:
-    """Get search test mode configuration. Test mode is opt-in only."""
-    return get_bool("SEARCH_TEST_MODE", default=False)
 
 
 def get_search_mode() -> str:
-    """Get search mode configuration. Defaults to 'shallow' for live operation."""
-    return os.getenv("SEARCH_MODE", "shallow")
+    """Get search mode configuration. Only 'shallow' and 'off' modes supported."""
+    mode = os.getenv("SEARCH_MODE", "shallow").lower()
+    # Strip any test mode references
+    if mode == "test":
+        mode = "shallow"
+    return mode
 
 
 def get_recency_window() -> int:
@@ -74,7 +70,6 @@ def get_max_results_for_mode(mode: str) -> int:
     """Get maximum results based on search mode."""
     mode_mapping = {
         "off": 0,
-        "test": 2,
         "shallow": 3,
         "fast": 3,  # Keep for backward compatibility
         "deep": 6
@@ -88,8 +83,6 @@ def log_search_config():
     provider = get_search_provider()
     recency = get_recency_window()
     max_results = get_max_results_for_mode(mode)
-    llm_test = get_llm_test_mode()
-    search_test = get_search_test_mode()
     cache_ttl = get_cache_ttl_days()
     bypass_cache = should_bypass_cache()
     
@@ -99,7 +92,7 @@ def log_search_config():
     query_strategy = get_query_strategy()
     region_filter = is_region_filter_enabled()
     
-    print(f"EvidenceMode: provider={provider} default_mode={mode} llm_test={llm_test} search_test={search_test} cache_ttl={cache_ttl} bypass_cache={bypass_cache}")
+    print(f"EvidenceMode: provider={provider} mode={mode} cache_ttl={cache_ttl} bypass_cache={bypass_cache}")
     print(f"RegionConfig: mode={region_mode} country={region_country} query_strategy={query_strategy} filter_enabled={region_filter}")
     
     if mode != "off":

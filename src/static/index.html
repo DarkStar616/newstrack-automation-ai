@@ -837,7 +837,6 @@
                                 <select id="search_mode" name="search_mode">
                                     <option value="">Default</option>
                                     <option value="off">Off</option>
-                                    <option value="test">Test</option>
                                     <option value="shallow">Shallow</option>
                                     <option value="deep">Deep</option>
                                 </select>
@@ -902,18 +901,14 @@
                         </div>
                         <div class="form-group">
                             <label for="batchSize">Batch Size:</label>
-                            <select id="batchSize" style="width: 100%;">
-                                <option value="200" selected>200 keywords</option>
-                                <option value="100">100 keywords</option>
-                                <option value="50">50 keywords</option>
-                                <option value="500">500 keywords</option>
+                            <select id="batchSize" style="width: 100%;" disabled>
+                                <option value="200" selected>200 keywords (fixed)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="csvSearchMode">Processing Mode:</label>
                             <select id="csvSearchMode" style="width: 100%;">
                                 <option value="shallow" selected>Live (Shallow)</option>
-                                <option value="test">Test Mode</option>
                                 <option value="deep">Live (Deep)</option>
                             </select>
                         </div>
@@ -1479,22 +1474,15 @@
             
             if (!statusDiv || !modeSpan) return;
             
-            const isTestMode = runtime_config.search_mode === 'test' || runtime_config.search_test_mode;
             const modeText = `${runtime_config.search_mode} (${runtime_config.provider})`;
             
             modeSpan.textContent = modeText;
             
-            if (isTestMode) {
-                statusDiv.style.background = '#fff3cd';
-                statusDiv.style.borderLeft = '4px solid #ffc107';
-                statusDiv.style.color = '#856404';
-                statusDiv.innerHTML = `<strong>⚠️ Test mode active — results are mocked.</strong><br>Mode: ${escapeHtml(modeText)}`;
-            } else {
-                statusDiv.style.background = '#d4edda';
-                statusDiv.style.borderLeft = '4px solid #28a745';
-                statusDiv.style.color = '#155724';
-                statusDiv.innerHTML = `<strong>✓ Live mode active</strong><br>Mode: ${escapeHtml(modeText)}`;
-            }
+            // Always show live mode (test mode removed)
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.borderLeft = '4px solid #28a745';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = `<strong>✓ Live mode active</strong><br>Mode: ${escapeHtml(modeText)}`;
             
             statusDiv.style.display = 'block';
         }
@@ -1643,35 +1631,58 @@
             const previewDiv = document.getElementById('csvPreview');
             const previewContent = document.getElementById('csvPreviewContent');
             
+            // Show loading state
+            previewContent.innerHTML = '<div style="text-align: center; padding: 20px;"><i>🔄 Analyzing CSV format...</i></div>';
+            previewDiv.style.display = 'block';
+            
             try {
-                const text = await file.text();
-                const lines = text.split('\n').slice(0, 6); // Show first 6 lines
+                // Use server-side CSV analysis with encoding detection
+                const formData = new FormData();
+                formData.append('file', file);
                 
-                let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">';
-                lines.forEach((line, index) => {
-                    if (line.trim()) {
-                        const cells = line.split(',');
+                const response = await fetch('/api/keywords/csv-preview', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    let html = '';
+                    
+                    // Show detected format information
+                    html += `<div style="margin-bottom: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 0.9em;">
+                        <strong>📋 Detected Format:</strong><br>
+                        <span style="color: #1976d2;">Encoding:</span> ${result.encoding} | 
+                        <span style="color: #1976d2;">Delimiter:</span> ${result.delimiter} | 
+                        <span style="color: #1976d2;">Total rows:</span> ${result.total_rows} | 
+                        <span style="color: #1976d2;">Valid keywords:</span> ${result.valid_keywords}
+                    </div>`;
+                    
+                    // Show preview table
+                    html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">';
+                    result.preview.forEach((row, index) => {
                         const isHeader = index === 0;
                         html += `<tr style="background: ${isHeader ? '#e9ecef' : 'white'};">`;
-                        cells.forEach(cell => {
+                        row.forEach(cell => {
                             const style = `padding: 8px; border: 1px solid #dee2e6; ${isHeader ? 'font-weight: 600;' : ''}`;
-                            html += `<td style="${style}">${escapeHtml(cell.trim())}</td>`;
+                            html += `<td style="${style}">${escapeHtml(cell)}</td>`;
                         });
                         html += '</tr>';
+                    });
+                    html += '</table>';
+                    
+                    if (result.total_rows > 10) {
+                        html += `<p style="margin-top: 10px; font-size: 0.8em; color: #6c757d;">... and ${result.total_rows - 10} more rows</p>`;
                     }
-                });
-                html += '</table>';
-                
-                if (lines.length > 6) {
-                    html += '<p style="margin-top: 10px; font-size: 0.8em; color: #6c757d;">... and more rows</p>';
+                    
+                    previewContent.innerHTML = html;
+                } else {
+                    previewContent.innerHTML = `<div style="color: #dc3545;">❌ ${result.error || 'Failed to analyze CSV'}</div>`;
                 }
                 
-                previewContent.innerHTML = html;
-                previewDiv.style.display = 'block';
-                
             } catch (error) {
-                previewContent.innerHTML = `<div style="color: #dc3545;">Error reading file: ${escapeHtml(error.message)}</div>`;
-                previewDiv.style.display = 'block';
+                previewContent.innerHTML = `<div style="color: #dc3545;">❌ Error analyzing file: ${escapeHtml(error.message)}</div>`;
             }
         }
         

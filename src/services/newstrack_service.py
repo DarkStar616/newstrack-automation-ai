@@ -4,11 +4,11 @@ These functions contain core business logic without Flask dependencies.
 """
 import os
 import json
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from src.utils.llm_client import get_llm_client
 from src.utils.guardrails import get_guardrails_engine
 from src.utils.perplexity_client import PerplexityClient
-from src.utils.config import get_search_mode, get_perplexity_key, get_recency_window, get_max_results_for_mode, get_search_test_mode, get_llm_test_mode
+from src.utils.config import get_search_mode, get_perplexity_key, get_recency_window, get_max_results_for_mode
 from src.types.flags import Flag, create_flag, create_stale_flag, create_off_topic_flag, create_wrong_region_flag, create_wrong_domain_flag, create_weak_evidence_flag
 from src.utils.region import get_scope_description, check_domain_fitness
 from datetime import datetime, timedelta
@@ -167,7 +167,7 @@ Do not include any text outside the JSON response."""
 
 def do_drop(sector: str, company: Optional[str], current_date: str, categories: Dict[str, List[str]], 
             search_mode: Optional[str] = None, recency_window_months: Optional[int] = None, 
-            max_results_per_keyword: Optional[int] = None, source_location: Optional[str] = None) -> Dict[str, Any]:
+            max_results_per_keyword: Optional[int] = None, source_location: Union[str, Dict[str, str], None] = None) -> Dict[str, Any]:
     """
     Flag problematic keywords instead of removing them. All keywords are kept with appropriate flags.
     
@@ -198,24 +198,103 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
     
     # Initialize search for evidence gathering
     evidence_refs = {}
+    debug_queries = {}
+    region_scope = {}
     
     # Gather evidence for each keyword using enhanced search abstraction
     all_keywords = []
     for category_keywords in categories.values():
         all_keywords.extend(category_keywords)
     
-    if search_mode != "off":
-        from src.utils.search_client import search_for_evidence
-        for keyword in all_keywords:
+    # Process each keyword individually to track debug queries and region scope
+    for keyword in all_keywords:
+        # Resolve effective source_location for this keyword
+        if isinstance(source_location, dict):
+            # Per-keyword source location from CSV batch processing
+            raw_source_location = source_location.get(keyword, "")
+            
+            # Handle both dict objects (from BatchService) and strings
+            if isinstance(raw_source_location, dict):
+                # Dict object from BatchService: {"region_mode": "GLOBAL", "country": "X"}
+                region_mode = raw_source_location.get('region_mode', 'GLOBAL')
+                country = raw_source_location.get('country')
+                
+                # Convert dict format to string parsing variables and effective_source_location
+                if region_mode == 'GLOBAL' or not country:
+                    region_scope[keyword] = "global"
+                    effective_region_mode = "global"
+                    effective_region_country = None
+                    effective_source_location = ""  # Global scope
+                elif region_mode == 'EXCLUDE':
+                    region_scope[keyword] = f"exclude:{country}"
+                    effective_region_mode = "exclude"
+                    effective_region_country = country
+                    effective_source_location = f"!{country}"  # Exclude format
+                elif region_mode == 'INCLUDE':
+                    region_scope[keyword] = f"include:{country}"
+                    effective_region_mode = "include" 
+                    effective_region_country = country
+                    effective_source_location = country  # Include format
+                else:
+                    # Fallback for unknown region modes
+                    region_scope[keyword] = "global"
+                    effective_region_mode = "global"
+                    effective_region_country = None
+                    effective_source_location = ""  # Global scope
+            else:
+                # String from CSV or manual input - use existing parsing logic
+                effective_source_location = raw_source_location or ""
+                if not effective_source_location or effective_source_location.strip().lower() in ['', 'na', 'null', 'none']:
+                    region_scope[keyword] = "global"
+                    effective_region_mode = "global"
+                    effective_region_country = None
+                elif effective_source_location.strip().startswith('!'):
+                    country = effective_source_location.strip()[1:].strip()
+                    region_scope[keyword] = f"exclude:{country}" if country else "global"
+                    effective_region_mode = "exclude"
+                    effective_region_country = country
+                else:
+                    country = effective_source_location.strip()
+                    region_scope[keyword] = f"include:{country}" if country else "global"
+                    effective_region_mode = "include"
+                    effective_region_country = country
+        else:
+            # Global source location (string or None)
+            effective_source_location = source_location or ""
+            if not effective_source_location or effective_source_location.strip().lower() in ['', 'na', 'null', 'none']:
+                region_scope[keyword] = "global"
+                effective_region_mode = "global"
+                effective_region_country = None
+            elif effective_source_location.strip().startswith('!'):
+                country = effective_source_location.strip()[1:].strip()
+                region_scope[keyword] = f"exclude:{country}" if country else "global"
+                effective_region_mode = "exclude"
+                effective_region_country = country
+            else:
+                country = effective_source_location.strip()
+                region_scope[keyword] = f"include:{country}" if country else "global"
+                effective_region_mode = "include"
+                effective_region_country = country
+        
+        # Build debug query according to specification: BASE = "{sector} {keyword}"
+        from src.utils.search_client import _build_region_aware_query
+        debug_query = _build_region_aware_query(keyword, sector, effective_region_mode, effective_region_country)
+        debug_queries[keyword] = debug_query
+        
+        # Gather evidence if search is enabled
+        if search_mode != "off":
+            from src.utils.search_client import search_for_evidence
             evidence = search_for_evidence(
                 keyword, 
                 recency_months=recency_window_months,
                 max_results=max_results_per_keyword,
                 search_mode=search_mode,
                 sector=sector,
-                source_location=source_location
+                source_location=effective_source_location
             )
             evidence_refs[keyword] = evidence  # Always store, even if empty
+        else:
+            evidence_refs[keyword] = []
     
     # Generate flags for all keywords based on evidence and analysis
     flags_map = {}
@@ -292,16 +371,19 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
             from src.utils.region import scope_allows
             region_violations = []
             
+            # Get the effective source location for this keyword from our earlier processing
+            keyword_region_scope = region_scope.get(keyword, "global")
+            
             for i, evidence in enumerate(evidence_list):
                 region_guess = evidence.get('region_guess')
-                if region_guess and not scope_allows(source_location, region_guess):
+                if region_guess and not scope_allows(keyword_region_scope, region_guess):
                     region_violations.append(i)
             
             if region_violations:
-                scope_desc = get_scope_description(source_location)
+                scope_desc = get_scope_description(keyword_region_scope)
                 keyword_flags.append(create_wrong_region_flag(
-                    source_location.strip() if source_location.strip() else "Global",
-                    region_guess or "Unknown",
+                    keyword_region_scope if keyword_region_scope != "global" else "Global",
+                    region_guess if region_guess else "Unknown",
                     evidence_idx=region_violations
                 ))
         
@@ -337,7 +419,9 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
         'justification': f"All {len(all_keywords)} keywords retained with appropriate flags. "
                         f"Flagged {len(flags_map)} keywords with quality issues. "
                         f"Evidence evaluated for {len(evidence_refs)} keywords.",
-        'evidence_refs': evidence_refs
+        'evidence_refs': evidence_refs,
+        'debug_queries': debug_queries,  # Queries built for each keyword
+        'region_scope': region_scope  # Region scope for each keyword
     }
     
     # Apply guardrails to ensure we have the expected structure

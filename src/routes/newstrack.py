@@ -7,6 +7,7 @@ import time
 import os
 import io
 import copy
+from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
@@ -16,8 +17,7 @@ from src.utils.csv_ingest import extract_keywords_from_csv, create_batches, vali
 from src.services.batch_service import get_batch_service
 from src.utils.config import (
     get_search_mode, get_recency_window, get_search_provider, 
-    get_llm_test_mode, get_search_test_mode, should_bypass_cache,
-    get_max_results_for_mode
+    should_bypass_cache, get_max_results_for_mode
 )
 
 newstrack_bp = Blueprint('newstrack', __name__)
@@ -36,8 +36,6 @@ def get_runtime_config(search_mode: Optional[str] = None,
         "recency_window_months": effective_recency,
         "max_results_per_keyword": effective_max_results,
         "provider": get_search_provider(),
-        "llm_test_mode": get_llm_test_mode(),
-        "search_test_mode": get_search_test_mode(),
         "bypass_cache": should_bypass_cache()
     }
 
@@ -275,6 +273,8 @@ def drop_old_keywords():
             'flags': result.get('flags', {}),  # New flagging system
             'justification': result['justification'],
             'evidence_refs': result.get('evidence_refs', {}),
+            'debug_queries': result.get('debug_queries', {}),  # Debug queries for each keyword
+            'region_scope': result.get('region_scope', {}),  # Region scope for each keyword
             'guardrails': result['guardrails']
         })
         
@@ -370,13 +370,15 @@ def process_all_steps():
         
         # Create final_result without guardrails to enforce single guardrails block
         # Use deep copying and explicit sanitization to prevent aliasing issues
-        sanitized_drop = {k: v for k, v in drop_result.items() if k in {'updated','removed','justification','evidence_refs','flags'}}
+        sanitized_drop = {k: v for k, v in drop_result.items() if k in {'updated','removed','justification','evidence_refs','flags','debug_queries','region_scope'}}
         final_result = {
             'updated': copy.deepcopy(sanitized_drop.get('updated', {})),
             'removed': copy.deepcopy(sanitized_drop.get('removed', [])),
             'flags': copy.deepcopy(sanitized_drop.get('flags', {})),
             'justification': sanitized_drop.get('justification', ''),
             'evidence_refs': copy.deepcopy(sanitized_drop.get('evidence_refs', {})),
+            'debug_queries': copy.deepcopy(sanitized_drop.get('debug_queries', {})),
+            'region_scope': copy.deepcopy(sanitized_drop.get('region_scope', {})),
         }
         
         # Defensive: ensure no guardrails key sneaks in
@@ -404,7 +406,9 @@ def process_all_steps():
                 'removed': final_result['removed'],
                 'flags': final_result['flags'],
                 'justification': final_result['justification'],
-                'evidence_refs': final_result['evidence_refs']
+                'evidence_refs': final_result['evidence_refs'],
+                'debug_queries': final_result['debug_queries'],
+                'region_scope': final_result['region_scope']
             },
             'final_result': final_result,
             'guardrails': categorize_result['guardrails'],  # Single guardrails block
@@ -437,9 +441,8 @@ def get_guards_info():
     Only available when DEBUG=true or LLM_TEST_MODE=true.
     """
     debug_mode = os.getenv('DEBUG', 'false').lower() == 'true'
-    test_mode = os.getenv('LLM_TEST_MODE', 'false').lower() == 'true'
-    
-    if not (debug_mode or test_mode):
+    # Test mode removed - always require API key in live mode
+    if not debug_mode:
         return create_error_response(404, "Not found")
     
     try:
@@ -677,7 +680,9 @@ def process_excel_full():
                 'removed': final_result['removed'],
                 'flags': final_result['flags'],
                 'justification': final_result['justification'],
-                'evidence_refs': final_result['evidence_refs']
+                'evidence_refs': final_result['evidence_refs'],
+                'debug_queries': final_result['debug_queries'],
+                'region_scope': final_result['region_scope']
             },
             'final_result': final_result,
             'guardrails': guardrails_result['guardrails'],
@@ -744,6 +749,48 @@ def get_debug_config():
 
 # CSV Upload and Auto-Batching Endpoints
 
+@newstrack_bp.route('/keywords/csv-preview', methods=['POST'])
+def preview_csv():
+    """
+    Preview CSV file with encoding and delimiter detection.
+    Shows first 10 rows with detected format information.
+    """
+    try:
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return create_error_response(400, "No CSV file uploaded")
+        
+        file = request.files['file']
+        if file.filename == '':
+            return create_error_response(400, "No file selected")
+        
+        # Validate file extension
+        if not file.filename.lower().endswith(('.csv', '.txt')):
+            return create_error_response(400, "Invalid file type. Please upload a CSV file.")
+        
+        # Read and analyze CSV
+        csv_content = io.BytesIO(file.read())
+        
+        # Get detailed CSV analysis
+        from src.utils.csv_ingest import analyze_csv_format
+        analysis = analyze_csv_format(csv_content, preview_rows=10)
+        
+        if not analysis['valid']:
+            return create_error_response(400, f"CSV analysis failed: {analysis['error']}")
+        
+        return jsonify({
+            "success": True,
+            "preview": analysis['preview_data'],
+            "encoding": analysis['encoding_detected'],
+            "delimiter": analysis['delimiter_detected'],
+            "headers": analysis['headers'],
+            "total_rows": analysis['total_rows'],
+            "valid_keywords": analysis['valid_keyword_count']
+        })
+        
+    except Exception as e:
+        return create_error_response(500, f"CSV preview failed: {str(e)}")
+
 @newstrack_bp.route('/keywords/upload-csv', methods=['POST'])
 def upload_csv():
     """
@@ -768,8 +815,9 @@ def upload_csv():
         if not sector:
             return create_error_response(400, "Sector is required")
         
-        batch_size = int(request.form.get('batch_size', 200))
-        if batch_size <= 0 or batch_size > 1000:
+        # Hard-enforce 200-keyword batches (ignore client overrides)
+        batch_size = 200
+        if batch_size <= 0:
             return create_error_response(400, "Batch size must be between 1 and 1000")
         
         search_mode = request.form.get('search_mode', 'shallow')

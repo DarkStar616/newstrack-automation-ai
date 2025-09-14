@@ -1,0 +1,124 @@
+{
+  "batch_groups": {
+    "csv-20250914-154001-b9c0fc0e": {
+      "group_id": "csv-20250914-154001-b9c0fc0e",
+      "total_batches": 1,
+      "total_keywords": 5,
+      "created_at": "2025-09-14T15:40:01.703179",
+      "status": "completed_with_errors",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-154001-b9c0fc0e-batch-001",
+          "keywords": [
+            {
+              "keyword": "renewable energy",
+              "category": "industry",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "solar panel installations",
+              "category": "industry",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "carbon credits",
+              "category": "regulatory",
+              "region_mode": "EXCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "green bonds",
+              "category": "industry",
+              "region_mode": "INCLUDE",
+              "country": "South Africa"
+            },
+            {
+              "keyword": "wind power",
+              "category": "industry",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 5,
+          "status": "pending",
+          "created_at": "2025-09-14T15:40:01.703038",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 0,
+      "failed_batches": 1,
+      "in_progress_batches": 0
+    },
+    "csv-20250914-154128-fbaba317": {
+      "group_id": "csv-20250914-154128-fbaba317",
+      "total_batches": 1,
+      "total_keywords": 3,
+      "created_at": "2025-09-14T15:41:28.760663",
+      "status": "completed_with_errors",
+      "batches": [
+        {
+          "batch_id": "csv-20250914-154128-fbaba317-batch-001",
+          "keywords": [
+            {
+              "keyword": "Santam",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "Old Mutual",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            },
+            {
+              "keyword": "Banking Corp",
+              "category": "company",
+              "region_mode": "GLOBAL",
+              "country": null
+            }
+          ],
+          "size": 3,
+          "status": "pending",
+          "created_at": "2025-09-14T15:41:28.760650",
+          "started_at": null,
+          "completed_at": null,
+          "timing_ms": null,
+          "error": null
+        }
+      ],
+      "completed_batches": 0,
+      "failed_batches": 1,
+      "in_progress_batches": 0
+    }
+  },
+  "batch_results": {
+    "csv-20250914-154001-b9c0fc0e-batch-001": {
+      "batch_id": "csv-20250914-154001-b9c0fc0e-batch-001",
+      "status": "failed",
+      "keywords_processed": 0,
+      "success": false,
+      "timing_ms": 0,
+      "error": "Working outside of application context.\n\nThis typically means that you attempted to use functionality that needed\nthe current application. To solve this, set up an application context\nwith app.app_context(). See the documentation for more information.",
+      "started_at": null,
+      "completed_at": "2025-09-14T15:40:01.704597",
+      "result_data": null
+    },
+    "csv-20250914-154128-fbaba317-batch-001": {
+      "batch_id": "csv-20250914-154128-fbaba317-batch-001",
+      "status": "failed",
+      "keywords_processed": 0,
+      "success": false,
+      "timing_ms": 0,
+      "error": "Working outside of application context.\n\nThis typically means that you attempted to use functionality that needed\nthe current application. To solve this, set up an application context\nwith app.app_context(). See the documentation for more information.",
+      "started_at": null,
+      "completed_at": "2025-09-14T15:41:28.768332",
+      "result_data": null
+    }
+  }
+}

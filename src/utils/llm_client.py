@@ -7,7 +7,6 @@ import json
 from typing import Dict, Any, List, Optional
 from flask import current_app
 import openai
-from src.utils.config import get_llm_test_mode
 
 
 class LLMClient:
@@ -16,20 +15,14 @@ class LLMClient:
     def __init__(self):
         self.provider = current_app.config.get('LLM_PROVIDER', 'openai')
         self.model_name = current_app.config.get('MODEL_NAME', 'gpt-4.1-mini')
-        self.test_mode = get_llm_test_mode()
-        
-        if self.test_mode:
-            # In test mode, don't initialize real clients
-            self.client = None
-        elif self.provider == 'openai':
+        if self.provider == 'openai':
             api_key = os.getenv('OPENAI_API_KEY')
-            if not api_key and not self.test_mode:
-                # Only require API key when not in test mode
+            if not api_key:
                 raise ValueError("OPENAI_API_KEY environment variable is required when using OpenAI provider")
             self.client = openai.OpenAI(
-                api_key=api_key or "test-key",
+                api_key=api_key,
                 base_url=os.getenv('OPENAI_API_BASE')
-            ) if not self.test_mode else None
+            )
         elif self.provider == 'claude':
             # Claude client setup - placeholder for now
             self.client = None
@@ -39,7 +32,7 @@ class LLMClient:
         elif self.provider == 'google':
             # Google Gemini client setup
             self.api_key = os.getenv('GOOGLE_API_KEY')
-            if not self.api_key and not self.test_mode:
+            if not self.api_key:
                 raise ValueError("GOOGLE_API_KEY environment variable is required when using Google provider")
             self.client = None  # Gemini client initialized per request
         else:
@@ -56,7 +49,7 @@ class LLMClient:
         Returns:
             The generated response content as a string
         """
-        if self.test_mode:
+        if False:  # Test mode removed
             return self._generate_test_response(messages)
         elif self.provider == 'openai':
             return self._openai_completion(messages, temperature)

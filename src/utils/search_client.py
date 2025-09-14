@@ -8,7 +8,7 @@ import sqlite3
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 from src.utils.config import (
-    get_search_mode, get_search_test_mode, should_bypass_cache, get_cache_ttl_days,
+    get_search_mode, should_bypass_cache, get_cache_ttl_days,
     get_region_mode, get_region_country, get_query_strategy, is_region_filter_enabled
 )
 from src.utils.region import infer_region, scope_allows, filter_evidence_by_region
@@ -58,16 +58,9 @@ def search_for_evidence(
     if region_country is None:
         region_country = get_region_country()
     
-    # Check for explicit test mode or SEARCH_TEST_MODE environment
-    test_mode_active = search_mode == "test" or get_search_test_mode()
-    
     # Handle off mode
     if search_mode == "off":
         return []
-    
-    # Handle test mode with deterministic fakes
-    if test_mode_active:
-        return _get_test_evidence(term, max_results=2)  # Always 2 for test mode
     
     # Check cache first (unless bypassed)
     cache_key = _get_enhanced_cache_key(provider, term, recency_months, region_mode, region_country, source_location)
@@ -76,16 +69,31 @@ def search_for_evidence(
         if cached_result is not None:
             return cached_result[:max_results]
     
-    # Build region-aware queries
-    queries = _build_region_aware_queries(term, sector, region_mode, region_country)
+    # Resolve effective region settings from source_location if provided
+    effective_region_mode = region_mode
+    effective_region_country = region_country
     
-    # Route to appropriate provider for live search with enhanced queries
+    if source_location is not None:
+        # Parse source_location to override config settings
+        if not source_location or source_location.strip().lower() in ['', 'na', 'null', 'none']:
+            effective_region_mode = "global"
+            effective_region_country = None
+        elif source_location.strip().startswith('!'):
+            effective_region_mode = "exclude"
+            effective_region_country = source_location.strip()[1:].strip()
+        else:
+            effective_region_mode = "include"
+            effective_region_country = source_location.strip()
+    
+    # Build single region-aware query
+    query = _build_region_aware_query(term, sector, effective_region_mode, effective_region_country)
+    
+    # Route to appropriate provider for live search
     all_results = []
     if provider == "google":
         from src.utils.gemini_client import search_with_gemini
-        for query in queries:
-            query_results = search_with_gemini(query, recency_months, max_results)
-            all_results.extend(query_results)
+        query_results = search_with_gemini(query, recency_months, max_results)
+        all_results.extend(query_results)
     else:
         # Fallback to existing Perplexity implementation
         from src.utils.perplexity_client import PerplexityClient
@@ -94,9 +102,8 @@ def search_for_evidence(
         perplexity_key = get_perplexity_key()
         if perplexity_key:
             client = PerplexityClient(perplexity_key, search_mode)
-            for query in queries:
-                query_results = client.search_keyword(query, max_results, recency_months)
-                all_results.extend(query_results)
+            query_results = client.search_keyword(query, max_results, recency_months)
+            all_results.extend(query_results)
         else:
             all_results = []
     
@@ -127,68 +134,36 @@ def search_for_evidence(
     return result
 
 
-def _build_region_aware_queries(term: str, sector: str, region_mode: str, region_country: str) -> List[str]:
+def _build_region_aware_query(term: str, sector: str, region_mode: str, region_country: str) -> str:
     """
-    Build region-aware search queries based on the query strategy.
+    Build a single region-aware search query based on the specification.
+    
+    Query format: BASE = "{sector} {keyword}"
+    - global: BASE
+    - include: BASE + " {country}"  
+    - exclude: BASE + " -{country}"
     
     Args:
         term: The keyword to search for
         sector: Business sector for context
-        region_mode: "global", "country", or "exclude_country"
+        region_mode: "global", "include", or "exclude"
         region_country: Target country
         
     Returns:
-        List of search query strings
+        Single search query string
     """
-    # Normalize sector for query construction
-    if "short-term" in sector.lower() or "p&c" in sector.lower():
-        base_sector = "short-term P&C insurance"
-    else:
-        base_sector = f"{sector} insurance"
-    
-    queries = []
+    # Base query: sector + keyword
+    base_query = f"{sector} {term}"
     
     if region_mode == "global":
-        # Global queries - no region constraints
-        queries = [
-            f"{term} {base_sector}",
-            f"{term} {base_sector} latest news",
-            f"{term} {base_sector} 2025"
-        ]
-    
-    elif region_mode == "country":
-        # Country-specific queries
-        country = region_country
-        if country == "South Africa":
-            queries = [
-                f"{term} {base_sector} {country}",
-                f"{term} {base_sector} site:(*.co.za OR *.za) OR (\"South Africa\")",
-                f"{term} {base_sector} latest news {country}"
-            ]
-        else:
-            queries = [
-                f"{term} {base_sector} {country}",
-                f"{term} {base_sector} latest news {country}",
-                f"{term} {base_sector} 2025 {country}"
-            ]
-    
-    elif region_mode == "exclude_country":
-        # Exclude specific country
-        country = region_country
-        if country == "South Africa":
-            queries = [
-                f"{term} {base_sector} -\"South Africa\" -site:*.za -site:*.co.za",
-                f"{term} {base_sector} latest news -\"South Africa\"",
-                f"{term} {base_sector} 2025 -\"South Africa\""
-            ]
-        else:
-            queries = [
-                f"{term} {base_sector} -\"{country}\"",
-                f"{term} {base_sector} latest news -\"{country}\"",
-                f"{term} {base_sector} 2025 -\"{country}\""
-            ]
-    
-    return queries
+        return base_query
+    elif region_mode == "include":
+        return f"{base_query} {region_country}" if region_country else base_query
+    elif region_mode == "exclude":
+        return f"{base_query} -{region_country}" if region_country else base_query
+    else:
+        # Default to global for unknown modes
+        return base_query
 
 
 def _deduplicate_by_host(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -300,19 +275,6 @@ def _cache_evidence_enhanced(cache_key: str, evidence: List[Dict[str, Any]]):
         pass
 
 
-def _get_test_evidence(term: str, max_results: int = 2) -> List[Dict[str, Any]]:
-    """Generate deterministic test evidence for any term."""
-    evidence = []
-    for i in range(max_results):
-        evidence.append({
-            "provider": "test",
-            "url": f"https://example.com/news/{term.lower().replace(' ', '-')}-article-{i+1}",
-            "title": f"Test Article {i+1}: {term} Industry Update",
-            "snippet": f"This is a test evidence snippet about {term}. The article discusses recent developments and trends related to {term} in the current market environment.",
-            "published_date": "2025-09-10",
-            "region_guess": None
-        })
-    return evidence
 
 
 def _get_cache_db_path() -> str:

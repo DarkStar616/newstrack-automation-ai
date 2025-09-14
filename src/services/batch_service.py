@@ -18,8 +18,7 @@ from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
 from src.utils.config import (
     get_search_mode, get_recency_window, get_search_provider, 
-    get_llm_test_mode, get_search_test_mode, should_bypass_cache,
-    get_max_results_for_mode
+    should_bypass_cache, get_max_results_for_mode
 )
 
 
@@ -249,17 +248,21 @@ class BatchService:
         }
         
         # Step 1: Categorize
-        step1_result = do_categorize(request_data)
+        step1_result = do_categorize(sector, None, keywords)
         if not step1_result.get('success', False):
             raise Exception(f"Step 1 (Categorize) failed: {step1_result.get('error', 'Unknown error')}")
         
         # Step 2: Expand
-        step2_result = do_expand(step1_result)
+        step2_result = do_expand(sector, None, step1_result.get('categories', {}))
         if not step2_result.get('success', False):
             raise Exception(f"Step 2 (Expand) failed: {step2_result.get('error', 'Unknown error')}")
         
         # Step 3: Drop (with live evidence gathering)
-        final_result = do_drop(step2_result)
+        final_result = do_drop(
+            sector, None, current_date, step2_result.get('categories', {}),
+            search_mode=search_mode,
+            source_location=source_locations  # Pass full dict for per-keyword region rules
+        )
         if not final_result.get('success', False):
             raise Exception(f"Step 3 (Drop) failed: {final_result.get('error', 'Unknown error')}")
         

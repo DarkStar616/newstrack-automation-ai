@@ -1,0 +1,210 @@
+Goal (live only):
+CSV upload processes keywords in batches of 200, builds queries as <sector> + <keyword> + <region constraint>, respects Excel/CSV “Source location” rules and the UI toggle, never deletes keywords (flags only), and exports a consolidated CSV. If anything fails, apply minimal diffs and re-run until PASS.
+
+Hard rules (must enforce)
+
+No test mode anywhere. Remove UI toggles and server flags for search_test_mode, llm_test_mode, or search_mode:"test". Production provider + real searches only.
+
+Contract invariant: final_result.removed == []; no guardrails inside final_result (top-level only); keep batch_id, runtime_config, success, timing_ms.
+
+CSV feature requirements (live)
+
+Upload & Parse
+
+Accept .csv (UTF-8/UTF-8-BOM/Windows-1252).
+
+Required column: Keyword. Optional: Category, Source location.
+
+Detect delimiter (,/;/\t) and show a 10-row preview with detected encoding + delimiter before processing.
+
+Region rules (case/whitespace tolerant; per-row):
+
+"" (blank) → global (no country token)
+
+X → include only country X (append X)
+
+!X → exclude country X (append -X)
+
+UI toggle (Global | Country only | Everywhere but Country) overrides CSV per run.
+
+Auto-batching
+
+Split into 200-keyword batches (hard cap both UI and server; ignore client overrides).
+
+Concurrent processing with safe limits; progress shown per batch + totals.
+
+Never drop inputs; failed rows produce clear errors but remain represented in flags/updated.
+
+Query builder
+
+BASE = "{sector} {keyword}"
+
+include → BASE + " {country}"
+
+exclude → BASE + " -{country}"
+
+global → BASE
+
+Persist final_result.debug_queries[keyword] and
+final_result.region_scope[keyword] = "global" | "include:<X>" | "exclude:<X>".
+
+Export
+
+Consolidated CSV across all batches with columns (exact names):
+Keyword, Category, RegionMode, CountryToken, BuiltQuery, FlagTypes, TopScore, TopSource, PublishedDate, EvidenceCount
+
+FlagTypes is a ;-joined list (e.g., off_topic;weak_evidence).
+
+TopSource = domain, and PublishedDate = ISO YYYY-MM-DD (first/best evidence).
+
+Flags & scoring (unchanged semantics)
+
+off_topic (block), stale (warn), weak_evidence (warn), region_mismatch (warn), dup_result (info).
+
+Don’t remove keywords even on block.
+
+Remove test mode now
+
+Code scrub: remove UI “Live/Test” control in CSV area; hide any batch-size override; clamp to 200.
+
+Server guards: ignore/strip any incoming *_test_mode or "test" search modes.
+
+Run these live checks and fix until PASS:
+
+0) Test-mode purge
+
+Repo grep: search_test_mode|llm_test_mode|"test"|search_mode.*test → 0 matches in codepaths hit by CSV/batch.
+
+UI has no “test mode” text/inputs.
+
+1) CSV parse & preview (live)
+
+Upload a small CSV containing rows for "", South Africa, !South Africa (with case/space variants).
+
+Preview shows 10 rows, correct delimiter + encoding.
+
+2) Region mapping (live)
+
+After processing, confirm region_scope per row:
+"" → global, "South Africa" → include:South Africa, "!South Africa" → exclude:South Africa.
+
+debug_queries show appended South Africa or -South Africa or none.
+
+3) Auto-batching (live)
+
+Upload 450 keywords → exactly 3 batches (≤200 each). Order stable; all 450 accounted for.
+
+4) Contract & structure (live)
+
+A sample POST to /api/process-all returns:
+removed: [] and no inner guardrails. All required fields present. Every keyword appears in flags and updated.
+
+5) Evidence quality (live, ZA-leaning set)
+
+For SA companies/regulators, ≥30–50% have ≥1 evidence with score ≥4.0.
+
+stale only outside recency_window_months.
+
+region_mismatch set when include/exclude violated.
+
+6) Export schema (live)
+
+Download consolidated CSV; header exactly matches the 10 columns above; sample rows are filled correctly.
+
+7) Performance (live, 200 keywords)
+
+Report: total timing_ms, p95 per-keyword latency, retries/exceptions.
+
+If slow, propose 1–2 safe tweaks (e.g., tuned concurrency, cache domain→region, adjust max_results_per_keyword) and apply trivial ones.
+
+8) UI confirmations (live)
+
+CSV section present; no test mode or batch size override.
+
+Progress bars + counts (completed/in-progress/failed/total).
+
+Region chips reflect region_scope.
+
+Flag chips show severity color + tooltip reason.
+
+“Show queries” reveals exact debug_queries with copy-to-clipboard.
+
+Commands (use/adjust paths as in repo)
+
+A) Contract quick check (live)
+
+curl -s -X POST http://localhost:5000/api/process-all \
+  -H "Content-Type: application/json" \
+  -d '{ "sector":"Short-term Insurance",
+        "keywords":"AIG\nAllianz\nInsurance Regulatory Authority",
+        "current_date":"2025-09-14",
+        "search_mode":"shallow" }' \
+| python3 - <<'PY'
+import sys,json
+d=json.load(sys.stdin); fr=d.get("final_result",{})
+ok = fr.get("removed",[])==[] and ("guardrails" not in fr) and ("guardrails" in d) and isinstance(fr.get("flags",{}),dict)
+print("PASS" if ok else "FAIL")
+print(json.dumps({
+ "has_top_guardrails":"guardrails" in d,
+ "has_inner_guardrails":"guardrails" in fr,
+ "removed_empty": fr.get("removed",[])==[],
+ "required_fields": all(k in d for k in ["batch_id","runtime_config","final_result","guardrails","success","timing_ms"])
+}, indent=2))
+PY
+
+
+B) Region include / exclude (live)
+
+# INCLUDE ZA
+curl -s -X POST http://localhost:5000/api/process-all \
+ -H "Content-Type: application/json" \
+ -d '{ "sector":"Short-term Insurance",
+       "keywords":"Santam\nHollard Insurance",
+       "current_date":"2025-09-14",
+       "search_mode":"shallow",
+       "source_location":"South Africa" }' \
+| python3 - <<'PY'
+import sys,json
+d=json.load(sys.stdin); fr=d.get("final_result",{})
+dq=fr.get("debug_queries",{}); rs=fr.get("region_scope",{})
+ok=all(rs.get(k,"").startswith("include:") for k in ["Santam","Hollard Insurance"])
+print("PASS" if ok else "FAIL"); print({"queries":{k:dq.get(k) for k in ["Santam","Hollard Insurance"]},"region":{k:rs.get(k) for k in ["Santam","Hollard Insurance"]}})
+PY
+
+# EXCLUDE ZA
+curl -s -X POST http://localhost:5000/api/process-all \
+ -H "Content-Type: application/json" \
+ -d '{ "sector":"Short-term Insurance",
+       "keywords":"Santam\nHollard Insurance",
+       "current_date":"2025-09-14",
+       "search_mode":"shallow",
+       "source_location":"!South Africa" }' \
+| python3 - <<'PY'
+import sys,json
+d=json.load(sys.stdin); fr=d.get("final_result",{})
+dq=fr.get("debug_queries",{}); rs=fr.get("region_scope",{})
+ok=all(rs.get(k,"").startswith("exclude:") for k in ["Santam","Hollard Insurance"])
+print("PASS" if ok else "FAIL"); print({"queries":{k:dq.get(k) for k in ["Santam","Hollard Insurance"]},"region":{k:rs.get(k) for k in ["Santam","Hollard Insurance"]}})
+PY
+
+
+C) Test-mode purge (repo)
+
+rg -n 'search_test_mode|llm_test_mode|"test"|search_mode.*test' || true
+# Expect no hits in CSV/batch/processing codepaths. Remove if present.
+
+If anything FAILS
+
+Return minimal diffs (file + line range) and why.
+
+Apply fixes, re-run the exact check, paste PASS output.
+
+Keep CSV batching at 200 enforced in both UI + server.
+
+Deliverables
+
+Updated code (UI + backend) with test-mode fully removed and 200-hard-cap batching.
+
+A short PASS/FAIL summary covering: Contract, Region mapping, CSV preview/parse, Batching 450→3, Evidence quality (≥30–50% ≥4.0), Export schema, Performance (total, p95), and UI confirmations (chips/queries/progress).
+
+Reminder: Everything is live. Do not set or rely on any test mode variables anywhere.
