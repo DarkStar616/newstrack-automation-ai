@@ -58,3 +58,5 @@ google-generativeai
 python-dateutil
 google-generativeai
 python-dateutil
+openpyxl
+pandas

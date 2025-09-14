@@ -3,7 +3,8 @@ Excel ingestion utility for loading keywords with source location data.
 Supports .xls/.xlsx files with fallback across different Excel libraries.
 """
 import os
-from typing import List, Dict, Optional, Any
+import io
+from typing import List, Dict, Optional, Any, Union
 import logging
 
 
@@ -251,18 +252,143 @@ def validate_excel_format(file_path: str) -> Dict[str, Any]:
 
 
 # For testing/development
+def extract_keywords_from_excel(excel_file: Union[str, io.BytesIO]) -> Dict[str, Any]:
+    """
+    Extract keywords from Excel file with comprehensive processing for API routes.
+    
+    Args:
+        excel_file: Path to Excel file or BytesIO object from upload
+        
+    Returns:
+        Dictionary with:
+        - keywords: List of processed keyword objects
+        - source_locations: Mapping of keywords to region configs
+        - stats: Processing statistics
+        - validation: Validation results
+    """
+    try:
+        # Load raw data
+        if isinstance(excel_file, (str, os.PathLike)):
+            raw_keywords = load_keywords(excel_file)
+        else:
+            # Handle BytesIO from file upload
+            raw_keywords = _load_from_bytesio(excel_file)
+            
+        if not raw_keywords:
+            raise ValueError("No valid keywords found in Excel file")
+        
+        # Process keywords and build region configs
+        processed_keywords = []
+        source_locations = {}
+        region_stats = {"global": 0, "include": 0, "exclude": 0}
+        
+        for item in raw_keywords:
+            keyword = item.get('keyword', '').strip()
+            sector = item.get('category', '').strip() or item.get('sector', '').strip()
+            source_location = item.get('source_location', '').strip()
+            
+            if not keyword:
+                continue
+                
+            # Parse source location according to spec
+            region_config = _parse_source_location(source_location)
+            
+            # Build processed keyword object
+            processed_keyword = {
+                'keyword': keyword,
+                'sector': sector or None,
+                'region_mode': region_config['region_mode'],
+                'country': region_config['country']
+            }
+            
+            processed_keywords.append(processed_keyword)
+            source_locations[keyword] = region_config
+            
+            # Update stats
+            region_stats[region_config['region_mode'].lower()] += 1
+            
+            # Log per specification
+            logging.info(f"Excel row: {processed_keyword}")
+        
+        return {
+            'keywords': processed_keywords,
+            'source_locations': source_locations,
+            'stats': {
+                'total_keywords': len(processed_keywords),
+                'region_breakdown': region_stats,
+                'has_sector_column': any(kw.get('sector') for kw in processed_keywords),
+                'unique_sectors': list(set(kw.get('sector') for kw in processed_keywords if kw.get('sector')))
+            },
+            'validation': {
+                'valid': True,
+                'row_count': len(processed_keywords),
+                'columns_detected': ['Keyword', 'Sector', 'Source location'],
+                'sample_keywords': processed_keywords[:3]
+            }
+        }
+        
+    except Exception as e:
+        logging.error(f"Excel extraction failed: {str(e)}")
+        return {
+            'keywords': [],
+            'source_locations': {},
+            'stats': {'total_keywords': 0, 'region_breakdown': {}},
+            'validation': {'valid': False, 'error': str(e)}
+        }
+
+
+def _load_from_bytesio(excel_file: io.BytesIO) -> List[Dict[str, Optional[str]]]:
+    """Load Excel from BytesIO object (for file uploads)."""
+    try:
+        import pandas as pd
+        
+        # Reset position to beginning
+        excel_file.seek(0)
+        
+        # Try to read as Excel
+        df = pd.read_excel(excel_file, engine='openpyxl')
+        return _process_dataframe(df)
+        
+    except Exception as e:
+        logging.error(f"Failed to load BytesIO Excel: {str(e)}")
+        raise ValueError(f"Invalid Excel file: {str(e)}")
+
+
+def _parse_source_location(source_location: str) -> Dict[str, Optional[str]]:
+    """
+    Parse source location string according to specification.
+    
+    Rules:
+    - blank / NA / null -> region_mode="GLOBAL"
+    - "X" -> region_mode="INCLUDE", country="X"
+    - "!X" -> region_mode="EXCLUDE", country="X"
+    """
+    if not source_location or source_location.lower() in ['na', 'null', 'none', '']:
+        return {'region_mode': 'GLOBAL', 'country': None}
+    
+    source_location = source_location.strip()
+    
+    if source_location.startswith('!'):
+        # Exclude mode: "!South Africa" -> EXCLUDE South Africa
+        country = source_location[1:].strip()
+        return {'region_mode': 'EXCLUDE', 'country': country if country else None}
+    else:
+        # Include mode: "South Africa" -> INCLUDE South Africa
+        return {'region_mode': 'INCLUDE', 'country': source_location}
+
+
 def create_sample_excel(file_path: str = "sample_keywords.xlsx"):
     """Create a sample Excel file for testing."""
     try:
         import pandas as pd
         
         sample_data = [
-            {"Keyword": "Allianz", "Category": "company", "Source location": "South Africa"},
-            {"Keyword": "Short-term Insurance", "Category": "industry", "Source location": "South Africa"},
-            {"Keyword": "AIG", "Category": "company", "Source location": ""},
-            {"Keyword": "1st for Women", "Category": "company", "Source location": "South Africa"},
-            {"Keyword": "Prudential Authority", "Category": "regulatory", "Source location": "!South Africa"},
-            {"Keyword": "4 Sure Insurance", "Category": "company", "Source location": "South Africa"}
+            {"Keyword": "Allianz", "Sector": "Short-term Insurance", "Source location": "South Africa"},
+            {"Keyword": "Short-term Insurance", "Sector": "Short-term Insurance", "Source location": "South Africa"},
+            {"Keyword": "AIG", "Sector": "Short-term Insurance", "Source location": ""},
+            {"Keyword": "1st for Women", "Sector": "Short-term Insurance", "Source location": "South Africa"},
+            {"Keyword": "Prudential Authority", "Sector": "Short-term Insurance", "Source location": "!South Africa"},
+            {"Keyword": "4 Sure Insurance", "Sector": "Short-term Insurance", "Source location": "South Africa"}
         ]
         
         df = pd.DataFrame(sample_data)

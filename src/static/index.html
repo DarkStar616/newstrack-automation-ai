@@ -245,6 +245,219 @@
             border-radius: 20px;
             font-size: 0.9em;
             font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 2px;
+        }
+        
+        /* Region Toggle Controls */
+        .region-controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .region-controls h4 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        .toggle-group {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .toggle-option {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .toggle-option:last-child {
+            border-right: none;
+        }
+        
+        .toggle-option.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .country-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .country-picker label {
+            margin: 0;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .country-picker select {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 0.9em;
+            width: auto;
+            min-width: 150px;
+        }
+        
+        /* Flag and Region Chips */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 2px;
+        }
+        
+        .region-chip {
+            background: #e8f5e8;
+            color: #2d5a2d;
+        }
+        
+        .region-chip.include {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .region-chip.exclude {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .region-chip.global {
+            background: #e2e3e5;
+            color: #6c757d;
+        }
+        
+        .flag-chip {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .flag-chip.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .flag-chip.low {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .flag-chip.medium {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .flag-chip.high {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .recency-badge {
+            background: #28a745;
+            color: white;
+            font-size: 0.7em;
+        }
+        
+        .recency-badge.outdated {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .debug-toggle {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.7em;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        
+        .debug-query {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 0.8em;
+            margin-top: 8px;
+            display: none;
+            color: #495057;
+        }
+        
+        .keyword-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .keyword-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-right: 8px;
+        }
+        
+        .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .flag-chip:hover .tooltip {
+            opacity: 1;
+        }
+        
+        .category-chip {
+            background: #6f42c1;
+            color: white;
+            font-size: 0.7em;
+        }
+        
+        .keywords-enhanced {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         
         .metadata {
@@ -569,6 +782,31 @@
         
         <div class="form-container">
             <form id="keywordForm">
+                <!-- Region Controls -->
+                <div class="region-controls">
+                    <h4>🌍 Region Scope</h4>
+                    <div class="toggle-group" id="regionToggle">
+                        <button type="button" class="toggle-option active" data-mode="global">Global</button>
+                        <button type="button" class="toggle-option" data-mode="include">Country only</button>
+                        <button type="button" class="toggle-option" data-mode="exclude">Everywhere but Country</button>
+                    </div>
+                    <div class="country-picker">
+                        <label for="countrySelect">Country:</label>
+                        <select id="countrySelect" name="country">
+                            <option value="South Africa" selected>South Africa</option>
+                            <option value="United States">United States</option>
+                            <option value="United Kingdom">United Kingdom</option>
+                            <option value="Australia">Australia</option>
+                            <option value="Canada">Canada</option>
+                            <option value="Germany">Germany</option>
+                            <option value="France">France</option>
+                            <option value="India">India</option>
+                            <option value="China">China</option>
+                            <option value="Japan">Japan</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label for="sector">Sector:</label>
                     <input type="text" id="sector" name="sector" placeholder="e.g., short-term insurance" required>
@@ -665,6 +903,112 @@
         
         // Load system status on page load
         window.addEventListener('load', loadSystemStatus);
+        
+        // Initialize region toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRegionToggle();
+        });
+        
+        function initializeRegionToggle() {
+            const toggleOptions = document.querySelectorAll('.toggle-option');
+            const countrySelect = document.getElementById('countrySelect');
+            
+            toggleOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove active class from all options
+                    toggleOptions.forEach(opt => opt.classList.remove('active'));
+                    // Add active class to clicked option
+                    this.classList.add('active');
+                    
+                    // Update UI based on selection
+                    const mode = this.dataset.mode;
+                    updateRegionMode(mode);
+                });
+            });
+        }
+        
+        function updateRegionMode(mode) {
+            const countryPicker = document.querySelector('.country-picker');
+            
+            if (mode === 'global') {
+                countryPicker.style.opacity = '0.5';
+                countryPicker.style.pointerEvents = 'none';
+            } else {
+                countryPicker.style.opacity = '1';
+                countryPicker.style.pointerEvents = 'auto';
+            }
+        }
+        
+        function getRegionConfig() {
+            const activeToggle = document.querySelector('.toggle-option.active');
+            const mode = activeToggle.dataset.mode;
+            const country = document.getElementById('countrySelect').value;
+            
+            return {
+                mode: mode,
+                country: mode === 'global' ? null : country
+            };
+        }
+        
+        function formatRegionChip(regionMode, country) {
+            if (regionMode === 'GLOBAL' || !country) {
+                return '<span class="chip region-chip global">Global</span>';
+            } else if (regionMode === 'INCLUDE') {
+                return `<span class="chip region-chip include">${country} only</span>`;
+            } else if (regionMode === 'EXCLUDE') {
+                return `<span class="chip region-chip exclude">!${country}</span>`;
+            }
+            return '<span class="chip region-chip global">Global</span>';
+        }
+        
+        function formatFlagChips(flags) {
+            if (!flags || flags.length === 0) {
+                return '<span class="chip flag-chip info">Clean</span>';
+            }
+            
+            return flags.map(flag => {
+                const severityClass = flag.severity || 'info';
+                return `<span class="chip flag-chip ${severityClass}" title="${flag.reason}">
+                    ${flag.label || flag.code}
+                    <span class="tooltip">${flag.reason}</span>
+                </span>`;
+            }).join('');
+        }
+        
+        function formatRecencyBadge(evidenceRefs, recencyWindowMonths = 3) {
+            if (!evidenceRefs || evidenceRefs.length === 0) {
+                return '<span class="chip recency-badge outdated">No Evidence</span>';
+            }
+            
+            const now = new Date();
+            const cutoffDate = new Date(now.getFullYear(), now.getMonth() - recencyWindowMonths, now.getDate());
+            
+            const recentEvidence = evidenceRefs.filter(ref => {
+                if (!ref.published_date) return false;
+                const pubDate = new Date(ref.published_date);
+                return pubDate >= cutoffDate;
+            });
+            
+            if (recentEvidence.length === 0) {
+                return '<span class="chip recency-badge outdated">Outdated</span>';
+            }
+            
+            const recentDays = Math.ceil((now - new Date(Math.max(...recentEvidence.map(r => new Date(r.published_date))))) / (1000 * 60 * 60 * 24));
+            return `<span class="chip recency-badge">≤${recentDays}d</span>`;
+        }
+        
+        function toggleDebugQuery(element, query) {
+            const debugDiv = element.nextElementSibling;
+            if (debugDiv && debugDiv.classList.contains('debug-query')) {
+                debugDiv.style.display = debugDiv.style.display === 'block' ? 'none' : 'block';
+            } else {
+                const newDebugDiv = document.createElement('div');
+                newDebugDiv.className = 'debug-query';
+                newDebugDiv.textContent = query || 'Query not available';
+                newDebugDiv.style.display = 'block';
+                element.parentNode.insertBefore(newDebugDiv, element.nextSibling);
+            }
+        }
         
         async function loadSystemStatus() {
             try {
@@ -839,65 +1183,80 @@
                 `;
             }
             
-            // Step 3: Updated + Removed
-            if (step3_result.updated || step3_result.removed || final_result.updated || final_result.removed) {
+            // Step 3: Flagged Keywords (Enhanced Format)
+            if (step3_result.updated || final_result.updated || final_result.flags) {
                 const updated = step3_result.updated || final_result.updated || {};
-                const removed = step3_result.removed || final_result.removed || {};
+                const flags = final_result.flags || {};
+                const evidenceRefs = final_result.evidence_refs || step3_result.evidence_refs || {};
+                const recencyWindow = data.runtime_config?.recency_window_months || 3;
                 
                 html += `
                     <div class="step-section">
                         <details open>
-                            <summary class="step-header">Step 3: Currency Validation</summary>
+                            <summary class="step-header">🏁 Step 3: Evidence Validation & Flagging</summary>
                             <div class="step-content">
-                                <h4>Updated (Kept) Keywords</h4>
-                                <div class="three-column-grid">
-                                    <div>
-                                        <div class="column-header">Industry</div>
-                                        <div class="keywords">
-                                            ${(updated.industry || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="column-header">Company</div>
-                                        <div class="keywords">
-                                            ${(updated.company || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="column-header">Regulatory</div>
-                                        <div class="keywords">
-                                            ${(updated.regulatory || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
-                                        </div>
-                                    </div>
-                                </div>`;
+                                <h4>All Keywords (None Removed - Flagged Instead)</h4>`;
                 
-                // Removed keywords with reasons
-                const removedItems = [];
+                // Create a comprehensive list of all keywords from all categories
+                const allKeywords = [];
                 ['industry', 'company', 'regulatory'].forEach(category => {
-                    if (removed[category]) {
-                        removed[category].forEach(item => {
-                            if (typeof item === 'object' && item.keyword && item.reason) {
-                                removedItems.push({ keyword: item.keyword, reason: item.reason, category });
-                            } else if (typeof item === 'string') {
-                                removedItems.push({ keyword: item, reason: 'Outdated or no longer relevant', category });
-                            }
+                    if (updated[category]) {
+                        updated[category].forEach(keyword => {
+                            allKeywords.push({
+                                keyword: keyword,
+                                category: category,
+                                flags: flags[keyword] || [],
+                                evidenceRefs: evidenceRefs[keyword] || [],
+                                // Mock region data - in real implementation, this would come from the API
+                                regionMode: 'GLOBAL', // This would be set based on source_location
+                                country: null
+                            });
                         });
                     }
                 });
                 
-                if (removedItems.length > 0) {
-                    html += `
-                        <div class="removed-section">
-                            <h4>Removed Keywords</h4>
-                            ${removedItems.map(item => `
-                                <div class="removed-item">
-                                    <div class="removed-keyword">${escapeHtml(item.keyword)} (${escapeHtml(item.category)})</div>
-                                    <div class="removed-reason">${escapeHtml(item.reason)}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
+                if (allKeywords.length > 0) {
+                    html += `<div class="keywords-enhanced">`;
+                    
+                    allKeywords.forEach(item => {
+                        const regionChip = formatRegionChip(item.regionMode, item.country);
+                        const flagChips = formatFlagChips(item.flags);
+                        const recencyBadge = formatRecencyBadge(item.evidenceRefs, recencyWindow);
+                        const debugQuery = `${data.runtime_config?.sector || 'sector'} ${item.keyword}${item.country ? ` (${item.regionMode === 'INCLUDE' ? '' : '!'}${item.country})` : ''}`;
+                        
+                        html += `
+                            <div class="keyword-row">
+                                <span class="keyword-name">${escapeHtml(item.keyword)}</span>
+                                <span class="chip category-chip">${item.category}</span>
+                                ${regionChip}
+                                ${flagChips}
+                                ${recencyBadge}
+                                <button class="debug-toggle" onclick="toggleDebugQuery(this, '${escapeHtml(debugQuery)}')">🔍</button>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                } else {
+                    html += `<p style="color: #6c757d; font-style: italic;">No keywords processed yet.</p>`;
                 }
+                
+                // Summary stats
+                const totalKeywords = allKeywords.length;
+                const flaggedKeywords = allKeywords.filter(item => item.flags.length > 0).length;
+                const cleanKeywords = totalKeywords - flaggedKeywords;
+                
+                html += `
+                    <div class="summary-stats" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                        <h5>Summary</h5>
+                        <div style="display: flex; gap: 20px; font-size: 0.9em;">
+                            <span><strong>Total:</strong> ${totalKeywords}</span>
+                            <span><strong>Clean:</strong> ${cleanKeywords}</span>
+                            <span><strong>Flagged:</strong> ${flaggedKeywords}</span>
+                            <span><strong>Removed:</strong> 0 (Flagged instead)</span>
+                        </div>
+                    </div>
+                `;
                 
                 html += `</div></details></div>`;
             }
@@ -1052,12 +1411,21 @@
             const form = document.getElementById('keywordForm');
             const formData = new FormData(form);
             
+            // Get region configuration
+            const regionConfig = getRegionConfig();
+            
             const data = {
                 sector: formData.get('sector'),
                 company: formData.get('company'),
                 keywords: formData.get('keywords'),
                 current_date: formData.get('date')
             };
+            
+            // Add region configuration for evidence gathering
+            if (regionConfig.mode !== 'global' && regionConfig.country) {
+                const sourceLocation = regionConfig.mode === 'include' ? regionConfig.country : `!${regionConfig.country}`;
+                data.source_location = sourceLocation;
+            }
             
             // Add optional Evidence Mode parameters if they have values with validation
             const searchMode = formData.get('search_mode');

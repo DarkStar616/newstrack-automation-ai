@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
 from src.utils.guardrails import enforce_isolation, load_guards, get_guardrails_engine
-# from src.utils.excel_ingest import load_keywords_with_location  # TODO: Implement Excel functions
+from src.utils.excel_ingest import extract_keywords_from_excel
 from src.utils.config import (
     get_search_mode, get_recency_window, get_search_provider, 
     get_llm_test_mode, get_search_test_mode, should_bypass_cache,
@@ -460,9 +460,8 @@ def get_guards_info():
         return create_error_response(500, "Failed to retrieve guard information")
 
 
-# TODO: Re-enable Excel upload after implementing proper Excel functions
-# @newstrack_bp.route('/upload-excel', methods=['POST'])
-def upload_excel_keywords_disabled():
+@newstrack_bp.route('/keywords/upload', methods=['POST'])
+def upload_excel_keywords():
     """
     Upload Excel file with keywords and source location rules for batch processing.
     
@@ -505,9 +504,39 @@ def upload_excel_keywords_disabled():
         return create_error_response(500, "Failed to process Excel file")
 
 
-# TODO: Re-enable Excel processing after implementing proper Excel functions
-# @newstrack_bp.route('/process-excel', methods=['POST'])
-def process_excel_full_disabled():
+@newstrack_bp.route('/keywords/example', methods=['GET'])
+def download_example_template():
+    """Download example Excel template with required columns."""
+    try:
+        from src.utils.excel_ingest import create_sample_excel
+        import tempfile
+        
+        # Create sample file in temp directory
+        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
+            sample_file = create_sample_excel(tmp.name)
+            
+            # Read file contents
+            with open(sample_file, 'rb') as f:
+                excel_data = f.read()
+            
+            # Clean up temp file
+            os.unlink(sample_file)
+            
+            # Return as download
+            from flask import Response
+            return Response(
+                excel_data,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                headers={'Content-Disposition': 'attachment; filename=keywords_template.xlsx'}
+            )
+            
+    except Exception as e:
+        current_app.logger.error(f"Template creation error: {str(e)}")
+        return create_error_response(500, "Failed to create template")
+
+
+@newstrack_bp.route('/process-excel', methods=['POST'])
+def process_excel_full():
     """
     Upload Excel file and process through all three steps with region-aware flagging.
     
