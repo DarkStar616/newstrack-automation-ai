@@ -63,6 +63,16 @@ def serve(path):
             return "index.html not found", 404
 
 if __name__ == '__main__':
+    # Configure logging to stdout for debugging
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        stream=sys.stdout
+    )
+    app.logger.setLevel(logging.INFO)
+    app.logger.propagate = True
+    
     # Log search configuration at startup
     from src.utils.config import log_search_config
     log_search_config()

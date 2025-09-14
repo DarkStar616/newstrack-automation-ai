@@ -5,10 +5,13 @@ from flask import Blueprint, request, jsonify, current_app
 import json
 import time
 import os
+import io
+import copy
 from typing import Dict, List, Any, Optional, Tuple
 from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
-from src.utils.guardrails import enforce_isolation, load_guards
+from src.utils.guardrails import enforce_isolation, load_guards, get_guardrails_engine
+# from src.utils.excel_ingest import load_keywords_with_location  # TODO: Implement Excel functions
 from src.utils.config import (
     get_search_mode, get_recency_window, get_search_provider, 
     get_llm_test_mode, get_search_test_mode, should_bypass_cache,
@@ -224,13 +227,14 @@ def expand_categories():
 @newstrack_bp.route('/drop', methods=['POST'])
 def drop_old_keywords():
     """
-    Step 3: Remove outdated keywords from the expanded list.
+    Step 3: Flag problematic keywords instead of removing them. All keywords are preserved.
     
     Accepts:
     - { "sector": str, "company": str, "date": str, "categories": {industry:[],company:[],regulatory:[]} }
     - { "company_or_sector": str, "current_date": str, "categories": {...} } (backward compatible)
+    - Optional: "source_location": str (Excel region filtering rule: "", "South Africa", "!South Africa")
     
-    Returns: { "updated": {...}, "removed": [...], "justification": "...", "guardrails": {...} }
+    Returns: { "updated": {...}, "removed": [], "flags": {keyword: [flag_objects]}, "justification": "...", "guardrails": {...} }
     """
     try:
         data = normalize_request_data(request.json or {})
@@ -244,13 +248,14 @@ def drop_old_keywords():
         if not isinstance(categories, dict):
             return create_error_response(400, "Categories must be an object with industry/company/regulatory keys")
         
-        # Extract optional search parameters
+        # Extract optional search parameters and region settings
         search_mode = data.get('search_mode')
         recency_window_months = data.get('recency_window_months')
         max_results_per_keyword = data.get('max_results_per_keyword')
+        source_location = data.get('source_location')  # Excel region filtering rule
         
-        # Call service function with search parameters
-        result = do_drop(sector, company, date, categories, search_mode, recency_window_months, max_results_per_keyword)
+        # Call service function with enhanced parameters
+        result = do_drop(sector, company, date, categories, search_mode, recency_window_months, max_results_per_keyword, source_location)
         
         # Apply isolation before final result
         cleaned_updated, leaks_blocked = enforce_isolation(result['updated'])
@@ -264,7 +269,8 @@ def drop_old_keywords():
         
         return jsonify({
             'updated': result['updated'],
-            'removed': result['removed'],
+            'removed': result['removed'],  # Always empty list for backward compatibility
+            'flags': result.get('flags', {}),  # New flagging system
             'justification': result['justification'],
             'evidence_refs': result.get('evidence_refs', {}),
             'guardrails': result['guardrails']
@@ -293,10 +299,11 @@ def process_all_steps():
         raw_keywords = data['keywords']
         current_date = data.get('date', '2025-09').strip()
         
-        # Extract optional search parameters
+        # Extract optional search parameters and region settings
         search_mode = data.get('search_mode')
         recency_window_months = data.get('recency_window_months')
         max_results_per_keyword = data.get('max_results_per_keyword')
+        source_location = data.get('source_location')  # Excel region filtering rule
         
         # Normalize and deduplicate keywords
         normalized_keywords = normalize_keywords(raw_keywords)
@@ -319,9 +326,9 @@ def process_all_steps():
         # Step 2: Expand using the processed categories from guardrails
         expand_result = do_expand(sector, company, categorize_result['processed_categories'])
         
-        # Step 3: Drop using expanded categories with search parameters
+        # Step 3: Flag keywords using expanded categories with enhanced parameters
         drop_result = do_drop(sector, company, current_date, expand_result['expanded'], 
-                             search_mode, recency_window_months, max_results_per_keyword)
+                             search_mode, recency_window_months, max_results_per_keyword, source_location)
         
         # Apply final isolation before committing final_result
         final_cleaned, final_leaks_blocked = enforce_isolation(drop_result['updated'])
@@ -359,7 +366,27 @@ def process_all_steps():
         # Get runtime configuration for response
         runtime_config = get_runtime_config(search_mode, recency_window_months, max_results_per_keyword)
         
-        # Combine all results 
+        # Create final_result without guardrails to enforce single guardrails block
+        # Use deep copying and explicit sanitization to prevent aliasing issues
+        sanitized_drop = {k: v for k, v in drop_result.items() if k in {'updated','removed','justification','evidence_refs','flags'}}
+        final_result = {
+            'updated': copy.deepcopy(sanitized_drop.get('updated', {})),
+            'removed': copy.deepcopy(sanitized_drop.get('removed', [])),
+            'flags': copy.deepcopy(sanitized_drop.get('flags', {})),
+            'justification': sanitized_drop.get('justification', ''),
+            'evidence_refs': copy.deepcopy(sanitized_drop.get('evidence_refs', {})),
+        }
+        
+        # Defensive: ensure no guardrails key sneaks in
+        final_result.pop('guardrails', None)
+        
+        # Validation guard
+        assert 'guardrails' not in final_result, "final_result must not contain guardrails"
+        
+        # Final validation: ensure single guardrails block requirement is met
+        assert 'guardrails' not in final_result, "final_result must not contain guardrails"
+        
+        # Combine all results with single guardrails block at top level
         combined_result = {
             'success': True,
             'step1_result': {
@@ -371,13 +398,14 @@ def process_all_steps():
                 'notes': expand_result['notes']
             },
             'step3_result': {
-                'updated': drop_result['updated'],
-                'removed': drop_result['removed'],
-                'justification': drop_result['justification'],
-                'evidence_refs': drop_result.get('evidence_refs', {})
+                'updated': final_result['updated'],
+                'removed': final_result['removed'],
+                'flags': final_result['flags'],
+                'justification': final_result['justification'],
+                'evidence_refs': final_result['evidence_refs']
             },
-            'final_result': drop_result,
-            'guardrails': categorize_result['guardrails'],
+            'final_result': final_result,
+            'guardrails': categorize_result['guardrails'],  # Single guardrails block
             'runtime_config': runtime_config,
             'batch_id': batch_id,
             'timing_ms': processing_time_ms
@@ -430,6 +458,208 @@ def get_guards_info():
     except Exception as e:
         current_app.logger.error(f"Guards info error: {str(e)}")
         return create_error_response(500, "Failed to retrieve guard information")
+
+
+# TODO: Re-enable Excel upload after implementing proper Excel functions
+# @newstrack_bp.route('/upload-excel', methods=['POST'])
+def upload_excel_keywords_disabled():
+    """
+    Upload Excel file with keywords and source location rules for batch processing.
+    
+    Accepts:
+    - Multipart form data with 'file' field containing Excel (.xlsx) file
+    - Optional form fields: 'sector', 'company', 'current_date', 'search_mode'
+    - Excel must have 'Keyword' column and optional 'Source location' column
+    
+    Returns: { "keywords": [...], "source_locations": {...}, "stats": {...} }
+    """
+    try:
+        if 'file' not in request.files:
+            return create_error_response(400, "No file uploaded")
+        
+        file = request.files['file']
+        if file.filename == '':
+            return create_error_response(400, "No file selected")
+        
+        if not (file.filename and file.filename.lower().endswith('.xlsx')):
+            return create_error_response(400, "Only .xlsx files are supported")
+        
+        # Read Excel file from memory
+        excel_data = file.read()
+        excel_file = io.BytesIO(excel_data)
+        
+        # Process Excel using our ingestion utility
+        result = extract_keywords_from_excel(excel_file)
+        
+        return jsonify({
+            'keywords': result['keywords'],
+            'source_locations': result['source_locations'],
+            'stats': result['stats'],
+            'validation': result['validation']
+        })
+        
+    except ValueError as e:
+        return create_error_response(400, str(e))
+    except Exception as e:
+        current_app.logger.error(f"Excel upload error: {str(e)}")
+        return create_error_response(500, "Failed to process Excel file")
+
+
+# TODO: Re-enable Excel processing after implementing proper Excel functions
+# @newstrack_bp.route('/process-excel', methods=['POST'])
+def process_excel_full_disabled():
+    """
+    Upload Excel file and process through all three steps with region-aware flagging.
+    
+    Accepts:
+    - Multipart form data with 'file' field containing Excel (.xlsx) file
+    - Form fields: 'sector', 'current_date' (required)
+    - Optional: 'company', 'search_mode', 'recency_window_months', 'max_results_per_keyword'
+    
+    Returns: Full processing results with flags for each keyword's source location
+    """
+    try:
+        if 'file' not in request.files:
+            return create_error_response(400, "No file uploaded")
+        
+        file = request.files['file']
+        if file.filename == '':
+            return create_error_response(400, "No file selected")
+        
+        # Get required form fields
+        sector = request.form.get('sector', '').strip()
+        current_date = request.form.get('current_date', '').strip()
+        
+        if not sector or not current_date:
+            return create_error_response(400, "Fields 'sector' and 'current_date' are required")
+        
+        # Get optional form fields
+        company = request.form.get('company', '').strip() or None
+        search_mode = request.form.get('search_mode')
+        recency_window_months = request.form.get('recency_window_months')
+        max_results_per_keyword = request.form.get('max_results_per_keyword')
+        
+        # Convert numeric fields
+        if recency_window_months:
+            try:
+                recency_window_months = int(recency_window_months)
+            except ValueError:
+                return create_error_response(400, "recency_window_months must be a number")
+        else:
+            recency_window_months = None
+        
+        if max_results_per_keyword:
+            try:
+                max_results_per_keyword = int(max_results_per_keyword)
+            except ValueError:
+                return create_error_response(400, "max_results_per_keyword must be a number")
+        else:
+            max_results_per_keyword = None
+        
+        # Read and process Excel file
+        excel_data = file.read()
+        excel_file = io.BytesIO(excel_data)
+        excel_result = extract_keywords_from_excel(excel_file)
+        
+        keywords = excel_result['keywords']
+        source_locations = excel_result['source_locations']
+        
+        if not keywords:
+            return create_error_response(400, "No valid keywords found in Excel file")
+        
+        # Normalize keywords for processing
+        dedupe_result = dedupe_with_counts(keywords)
+        unique_keywords = dedupe_result['unique']
+        
+        # Step 1: Categorize
+        categorize_result = do_categorize(sector, company, unique_keywords)
+        
+        # Step 2: Expand
+        expand_result = do_expand(sector, company, categorize_result['categories'])
+        
+        # Step 3: Flag keywords with region-aware processing
+        # Process each keyword with its specific source location
+        all_flags = {}
+        all_evidence_refs = {}
+        updated_categories = expand_result['expanded'].copy()
+        
+        for keyword in unique_keywords:
+            source_location = source_locations.get(keyword, "")
+            
+            # Create single-keyword categories for individual processing
+            keyword_categories = {'industry': [], 'company': [], 'regulatory': []}
+            for category, keywords_list in expand_result['expanded'].items():
+                if keyword in keywords_list:
+                    keyword_categories[category] = [keyword]
+            
+            # Process this specific keyword with its source location
+            if any(keyword_categories.values()):  # Only process if keyword exists in categories
+                keyword_result = do_drop(
+                    sector, company, current_date, keyword_categories,
+                    search_mode, recency_window_months, max_results_per_keyword, source_location
+                )
+                
+                # Collect flags and evidence
+                keyword_flags = keyword_result.get('flags', {})
+                keyword_evidence = keyword_result.get('evidence_refs', {})
+                
+                if keyword in keyword_flags:
+                    all_flags[keyword] = keyword_flags[keyword]
+                if keyword in keyword_evidence:
+                    all_evidence_refs[keyword] = keyword_evidence[keyword]
+        
+        # Build final result structure
+        final_result = {
+            'updated': updated_categories,
+            'removed': [],  # Always empty in new flagging system
+            'flags': all_flags,
+            'justification': f"Processed {len(unique_keywords)} keywords from Excel with region-aware flagging. "
+                            f"Flagged {len(all_flags)} keywords with quality issues.",
+            'evidence_refs': all_evidence_refs
+        }
+        
+        # Apply guardrails
+        all_input_keywords = []
+        for cat_list in updated_categories.values():
+            all_input_keywords.extend(cat_list)
+        
+        guardrails = get_guardrails_engine()
+        guardrails_result = guardrails.apply_all_guardrails(all_input_keywords, updated_categories)
+        
+        # Get runtime configuration
+        runtime_config = get_runtime_config(search_mode, recency_window_months, max_results_per_keyword)
+        
+        # Build complete response
+        combined_result = {
+            'success': True,
+            'excel_stats': excel_result['stats'],
+            'step1_result': {
+                'categories': categorize_result['categories'],
+                'explanations': categorize_result['explanations']
+            },
+            'step2_result': {
+                'expanded': expand_result['expanded'],
+                'notes': expand_result['notes']
+            },
+            'step3_result': {
+                'updated': final_result['updated'],
+                'removed': final_result['removed'],
+                'flags': final_result['flags'],
+                'justification': final_result['justification'],
+                'evidence_refs': final_result['evidence_refs']
+            },
+            'final_result': final_result,
+            'guardrails': guardrails_result['guardrails'],
+            'runtime_config': runtime_config
+        }
+        
+        return jsonify(combined_result)
+        
+    except ValueError as e:
+        return create_error_response(400, str(e))
+    except Exception as e:
+        current_app.logger.error(f"Excel processing error: {str(e)}")
+        return create_error_response(500, "Failed to process Excel file")
 
 
 @newstrack_bp.route('/status', methods=['GET'])

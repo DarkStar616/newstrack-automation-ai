@@ -632,32 +632,96 @@
       "input_total": 4,
       "output_accounted": 16,
       "timing_ms": 173075
+    },
+    "2025-09-14-033": {
+      "timestamp": "2025-09-14T13:40:08.394052",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 3,
+      "output_accounted": 15,
+      "timing_ms": 3773
+    },
+    "2025-09-14-034": {
+      "timestamp": "2025-09-14T13:40:30.198525",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 15,
+      "timing_ms": 3196
+    },
+    "2025-09-14-035": {
+      "timestamp": "2025-09-14T13:40:50.923614",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 14,
+      "timing_ms": 3229
+    },
+    "2025-09-14-036": {
+      "timestamp": "2025-09-14T13:41:32.579101",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 15,
+      "timing_ms": 3326
+    },
+    "2025-09-14-037": {
+      "timestamp": "2025-09-14T13:43:29.045703",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 2,
+      "output_accounted": 15,
+      "timing_ms": 3290
+    },
+    "2025-09-14-038": {
+      "timestamp": "2025-09-14T13:43:50.019389",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 15,
+      "timing_ms": 3231
+    },
+    "2025-09-14-039": {
+      "timestamp": "2025-09-14T13:45:15.008599",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 14,
+      "timing_ms": 3651
+    },
+    "2025-09-14-040": {
+      "timestamp": "2025-09-14T13:47:17.478990",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 1,
+      "output_accounted": 15,
+      "timing_ms": 4332
     }
   },
   "totals": {
-    "total_batches": 79,
-    "total_keywords_processed": 7076,
-    "total_keywords_output": 296,
+    "total_batches": 87,
+    "total_keywords_processed": 7088,
+    "total_keywords_output": 414,
     "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 420525,
-    "total_keywords_with_evidence": 223,
-    "total_evidence_items": 508,
+    "total_timing_ms": 448553,
+    "total_keywords_with_evidence": 341,
+    "total_evidence_items": 744,
     "total_keywords_dropped_with_evidence": 0,
     "total_keywords_dropped_no_evidence": 0
   },
   "categories": {
     "industry": {
-      "batches": 69,
-      "keywords": 90
+      "batches": 77,
+      "keywords": 130
     },
     "company": {
-      "batches": 69,
-      "keywords": 91
+      "batches": 77,
+      "keywords": 131
     },
     "regulatory": {
-      "batches": 69,
-      "keywords": 85
+      "batches": 77,
+      "keywords": 123
     }
   },
   "search": {
