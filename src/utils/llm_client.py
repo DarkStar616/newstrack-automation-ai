@@ -7,6 +7,7 @@ import json
 from typing import Dict, Any, List, Optional
 from flask import current_app
 import openai
+from src.utils.config import get_llm_test_mode
 
 
 class LLMClient:
@@ -15,7 +16,7 @@ class LLMClient:
     def __init__(self):
         self.provider = current_app.config.get('LLM_PROVIDER', 'openai')
         self.model_name = current_app.config.get('MODEL_NAME', 'gpt-4.1-mini')
-        self.test_mode = os.getenv('LLM_TEST_MODE', 'false').lower() == 'true'
+        self.test_mode = get_llm_test_mode()
         
         if self.test_mode:
             # In test mode, don't initialize real clients
@@ -35,6 +36,12 @@ class LLMClient:
             self.api_key = os.getenv('CLAUDE_API_KEY')
             if not self.api_key:
                 raise ValueError("CLAUDE_API_KEY environment variable is required when using Claude provider")
+        elif self.provider == 'google':
+            # Google Gemini client setup
+            self.api_key = os.getenv('GOOGLE_API_KEY')
+            if not self.api_key and not self.test_mode:
+                raise ValueError("GOOGLE_API_KEY environment variable is required when using Google provider")
+            self.client = None  # Gemini client initialized per request
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
     
@@ -55,6 +62,8 @@ class LLMClient:
             return self._openai_completion(messages, temperature)
         elif self.provider == 'claude':
             return self._claude_completion(messages, temperature)
+        elif self.provider == 'google':
+            return self._google_completion(messages, temperature)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
@@ -77,6 +86,41 @@ class LLMClient:
         # Placeholder implementation for Claude
         # In a real implementation, you would use the Anthropic client library
         raise NotImplementedError("Claude provider not yet implemented")
+    
+    def _google_completion(self, messages: List[Dict[str, str]], temperature: float) -> str:
+        """Generate completion using Google Gemini API."""
+        try:
+            import google.generativeai as genai  # type: ignore
+            
+            genai.configure(api_key=self.api_key)
+            model = genai.GenerativeModel(self.model_name)
+            
+            # Convert messages to Gemini format
+            prompt = ""
+            for msg in messages:
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                if role == 'system':
+                    prompt += f"System: {content}\n\n"
+                elif role == 'user':
+                    prompt += f"User: {content}\n\n"
+                elif role == 'assistant':
+                    prompt += f"Assistant: {content}\n\n"
+            
+            # Generate response
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=4000
+                )
+            )
+            
+            return response.text
+            
+        except Exception as e:
+            current_app.logger.error(f"Google Gemini API error: {str(e)}")
+            raise
     
     def _generate_test_response(self, messages: List[Dict[str, str]]) -> str:
         """Generate predictable test responses based on prompt content."""

@@ -3,6 +3,20 @@ import sys
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Override environment to enforce live mode defaults (test mode is opt-in only)
+# Only override if not explicitly set to true
+if os.environ.get('LLM_TEST_MODE', '').lower() != 'true':
+    os.environ['LLM_TEST_MODE'] = 'false'
+if os.environ.get('SEARCH_TEST_MODE', '').lower() != 'true':
+    os.environ['SEARCH_TEST_MODE'] = 'false'
+
+# Set other defaults
+os.environ.setdefault('SEARCH_MODE', 'shallow')
+os.environ.setdefault('RECENCY_WINDOW_MONTHS', '3')
+os.environ.setdefault('SEARCH_PROVIDER', 'google')
+os.environ.setdefault('SEARCH_CACHE_TTL_DAYS', '14')
+os.environ.setdefault('SEARCH_BYPASS_CACHE', 'false')
+
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from src.models.user import db
@@ -17,8 +31,8 @@ CORS(app)
 
 # Configuration from environment variables
 app.config['SECRET_KEY'] = os.getenv('APP_SECRET', 'dev-secret-key-change-in-production')
-app.config['MODEL_NAME'] = os.getenv('MODEL_NAME', 'gpt-4.1-mini')
-app.config['LLM_PROVIDER'] = os.getenv('LLM_PROVIDER', 'openai')
+app.config['MODEL_NAME'] = os.getenv('MODEL_NAME', 'gemini-1.5-flash')
+app.config['LLM_PROVIDER'] = os.getenv('LLM_PROVIDER', 'google')
 app.config['SEARCH_MODE'] = os.getenv('SEARCH_MODE', 'off')
 
 # Register blueprints

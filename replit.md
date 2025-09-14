@@ -7,6 +7,13 @@
 The Newstrack Keyword Automation System is an enterprise-grade Flask web application designed to automate keyword processing and categorization for news tracking. The system transforms manual ChatGPT workflows into a robust, scalable platform with audit trails and guardrails.
 
 ## Recent Changes
+- **2025-09-14:** **MAJOR OVERHAUL:** Removed all implicit test-mode behavior and made LIVE mode the default across the entire application
+- **2025-09-14:** Updated default configuration: search_mode="shallow", provider="google", LLM_TEST_MODE=false, SEARCH_TEST_MODE=false
+- **2025-09-14:** Enhanced LLM client to support Google Gemini 1.5 Flash as the default provider (was OpenAI)
+- **2025-09-14:** Added comprehensive runtime configuration transparency with debug endpoints and mode badges
+- **2025-09-14:** Implemented security hardening with XSS prevention, HTML escaping, and input sanitization
+- **2025-09-14:** Fixed json import bug in search client that was causing 500 errors in live mode
+- **2025-09-14:** Added cache management with TTL controls and bypass functionality for evidence gathering
 - **2025-09-12:** Successfully migrated from GitHub import to Replit environment
 - **2025-09-12:** Configured Flask app to run on port 5000 with proper CORS for Replit proxy/iframe access
 - **2025-09-12:** Set up Python 3.11 environment with all required dependencies
@@ -83,14 +90,17 @@ The Newstrack Keyword Automation System is an enterprise-grade Flask web applica
 ## Evidence Mode Configuration
 
 ### Search Modes
-- **off**: Evidence gathering disabled (default)
-- **test**: Uses mock evidence for testing (requires SEARCH_TEST_MODE=true)
-- **shallow**: Searches recent news articles via Perplexity Sonar API
+- **shallow**: Searches recent news articles via Google Gemini 1.5 Flash with search grounding (default)
+- **test**: Uses mock evidence for testing (only when explicitly requested)
+- **off**: Evidence gathering disabled
 
 ### Environment Variables
-- `SEARCH_TEST_MODE=true`: Enables test mode evidence generation
-- `LLM_TEST_MODE=true`: Uses mock LLM responses for testing
-- `PERPLEXITY_API_KEY`: Required for production evidence gathering
+- `LLM_TEST_MODE=false`: Disabled by default, uses Google Gemini 1.5 Flash for live processing
+- `SEARCH_TEST_MODE=false`: Disabled by default, uses Google search grounding for live evidence
+- `SEARCH_MODE=shallow`: Default live mode with 3-month recency window
+- `SEARCH_PROVIDER=google`: Default provider using Google Gemini with search capabilities
+- `GOOGLE_API_KEY`: Required for live evidence gathering and LLM processing
+- `PERPLEXITY_API_KEY`: Optional alternative provider for evidence gathering
 
 ### Evidence Tracking
 - Audit logs include complete evidence metrics per batch

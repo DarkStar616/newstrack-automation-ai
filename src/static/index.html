@@ -617,6 +617,10 @@
                                 </select>
                             </div>
                         </div>
+                        <!-- Runtime status badge -->
+                        <div id="runtime-status" style="margin-top: 15px; padding: 10px; border-radius: 4px; font-size: 0.9em; display: none;">
+                            <strong>Current Mode:</strong> <span id="current-mode"></span>
+                        </div>
                     </div>
                 </details>
                 
@@ -998,6 +1002,37 @@
             
             resultsDiv.innerHTML = html;
             resultsDiv.style.display = 'block';
+            
+            // Update runtime status badge
+            updateRuntimeStatus(data.runtime_config);
+        }
+        
+        function updateRuntimeStatus(runtime_config) {
+            if (!runtime_config) return;
+            
+            const statusDiv = document.getElementById('runtime-status');
+            const modeSpan = document.getElementById('current-mode');
+            
+            if (!statusDiv || !modeSpan) return;
+            
+            const isTestMode = runtime_config.search_mode === 'test' || runtime_config.search_test_mode;
+            const modeText = `${runtime_config.search_mode} (${runtime_config.provider})`;
+            
+            modeSpan.textContent = modeText;
+            
+            if (isTestMode) {
+                statusDiv.style.background = '#fff3cd';
+                statusDiv.style.borderLeft = '4px solid #ffc107';
+                statusDiv.style.color = '#856404';
+                statusDiv.innerHTML = `<strong>⚠️ Test mode active — results are mocked.</strong><br>Mode: ${escapeHtml(modeText)}`;
+            } else {
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.borderLeft = '4px solid #28a745';
+                statusDiv.style.color = '#155724';
+                statusDiv.innerHTML = `<strong>✓ Live mode active</strong><br>Mode: ${escapeHtml(modeText)}`;
+            }
+            
+            statusDiv.style.display = 'block';
         }
         
         function toggleRawJson(id) {

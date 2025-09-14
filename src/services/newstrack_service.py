@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from src.utils.llm_client import get_llm_client
 from src.utils.guardrails import get_guardrails_engine
 from src.utils.perplexity_client import PerplexityClient
-from src.utils.config import get_search_mode, get_perplexity_key, get_recency_window, get_max_results_for_mode
+from src.utils.config import get_search_mode, get_perplexity_key, get_recency_window, get_max_results_for_mode, get_search_test_mode, get_llm_test_mode
 
 
 def do_categorize(sector: str, company: Optional[str], keywords: List[str]) -> Dict[str, Any]:
@@ -184,9 +184,6 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
     
     # Initialize search configuration
     search_mode = search_mode or get_search_mode()
-    # Only force search mode if SEARCH_TEST_MODE is true AND no explicit search_mode was provided
-    if os.getenv("SEARCH_TEST_MODE", "false").lower() == "true" and not search_mode:
-        search_mode = "test"
     recency_window_months = recency_window_months or get_recency_window()
     max_results_per_keyword = max_results_per_keyword or get_max_results_for_mode(search_mode)
     
@@ -204,7 +201,8 @@ def do_drop(sector: str, company: Optional[str], current_date: str, categories: 
             evidence = search_for_evidence(
                 keyword, 
                 recency_months=recency_window_months,
-                max_results=max_results_per_keyword
+                max_results=max_results_per_keyword,
+                search_mode=search_mode
             )
             if evidence:
                 evidence_refs[keyword] = evidence

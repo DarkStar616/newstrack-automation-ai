@@ -1,0 +1,136 @@
+I need you to remove all implicit test-mode behavior and make LIVE the default across the app. Only run in test mode if the user explicitly sets search_mode="test" or env LLM_TEST_MODE=true/SEARCH_TEST_MODE=true. Also add runtime introspection so I can confirm flags from the browser or curl.
+
+Tasks (surgical changes only)
+1) Configuration: make live the default
+
+In src/utils/config.py:
+
+Change all getters so test is opt-in:
+
+get_bool("LLM_TEST_MODE", default=False)
+
+get_bool("SEARCH_TEST_MODE", default=False)
+
+get_search_mode() default should come from env SEARCH_MODE else "shallow" (not "test").
+
+get_recency_window() default 3.
+
+get_search_provider() default "google".
+
+Add def get_cache_ttl_days(): default 14; read SEARCH_CACHE_TTL_DAYS.
+
+Add def should_bypass_cache(): from SEARCH_BYPASS_CACHE (default False).
+
+2) Kill hidden test fallbacks in services
+
+In src/services/newstrack_service.py:
+
+Find any code that injects test-company-keyword, test-industry-keyword, test-regulatory-keyword or expanded-* when the model is in test. Replace with:
+
+Only use those stubs when (LLM_TEST_MODE or request.search_mode == "test").
+
+Otherwise, use the real inputs and real LLM path.
+
+In Step 3 (drop/outdated) evidence flow:
+
+If search_mode in {"shallow","deep"} and SEARCH_TEST_MODE is false, call the live SearchClient and pass the user’s actual keywords.
+
+If search_mode == "test" or SEARCH_TEST_MODE==true, return mock evidence (2 items per keyword) with clearly marked provider:"test".
+
+Ensure we never generate placeholder category tokens in live mode.
+
+3) Search client: purge test cache bleed
+
+In src/utils/search_client.py:
+
+Cache key must include: (provider, term.lower(), window_months, test_mode_flag).
+
+On should_bypass_cache() return True, skip cache entirely.
+
+When SEARCH_TEST_MODE==true, set provider="test" in Evidence.
+
+Add a one-time cache migration: if DB table lacks provider or test_flag, alter table. If not convenient, just auto recreate the DB when the schema is missing. Log it.
+
+4) Routes: explicit mode threading
+
+In src/routes/newstrack.py:
+
+Accept search_mode, recency_window_months, max_results_per_keyword.
+
+Thread these to the service.
+
+Echo effective config in the response root under runtime_config:
+
+{
+  "runtime_config": {
+    "search_mode": "...",
+    "recency_window_months": 3,
+    "max_results_per_keyword": 3,
+    "provider": "google",
+    "llm_test_mode": false,
+    "search_test_mode": false,
+    "bypass_cache": false
+  }
+}
+
+
+Add a small debug endpoint:
+
+GET /api/debug/config returns the same runtime_config block (no secrets).
+
+5) UI: show current mode, prevent silent test
+
+In src/static/index.html:
+
+In the “Evidence Mode Settings” panel, add a small badge that displays the effective mode after each run, reading the runtime_config.
+
+If runtime_config.search_mode=="test" OR runtime_config.search_test_mode==true, show a yellow warning: “Test mode active — results are mocked.”
+
+6) Acceptance checks
+
+Add shell scripts (or plain docs at repo root) to run:
+
+Live shallow test (no test modes):
+
+export LLM_TEST_MODE=false
+export SEARCH_TEST_MODE=false
+export SEARCH_MODE=shallow
+export RECENCY_WINDOW_MONTHS=3
+export SEARCH_PROVIDER=google
+export SEARCH_BYPASS_CACHE=true   # first run to avoid old cache
+rm -f results/cache.sqlite || true
+pkill -f flask || true; python -m src.main &>/tmp/app.log &; sleep 2
+
+curl -s $REPLIT_URL/api/process-all \
+  -H "Content-Type: application/json" \
+  -d '{"sector":"Short-term Insurance","company":"","keywords":"Allianz\nAbsa Insurance\nAIG","current_date":"2025-09","search_mode":"shallow","recency_window_months":3,"max_results_per_keyword":3}' \
+  | jq '.runtime_config, .step3_result.evidence_refs | keys'
+
+
+Expect keys to include your real inputs (e.g., “Allianz”, “AIG”, etc.).
+
+Explicit test:
+
+curl -s $REPLIT_URL/api/process-all \
+  -H "Content-Type: application/json" \
+  -d '{"sector":"Short-term Insurance","keywords":"Foo\nBar","current_date":"2025-09","search_mode":"test"}' \
+  | jq '.runtime_config, .step3_result.evidence_refs | keys'
+
+
+Expect provider "test" and keys Foo, Bar.
+
+7) Logging
+
+On app start (e.g., run_app.py), log one line:
+
+EvidenceMode: provider=<X> default_mode=<Y> llm_test=<bool> search_test=<bool> cache_ttl=<N> bypass_cache=<bool>
+
+8) Do not change guardrails behavior
+
+Keep dedupe and cross-category isolation exactly as-is, just ensure they run after evidence/decisions.
+
+When done, restart the app, run the acceptance checks, and paste:
+
+The /api/debug/config JSON.
+
+The keys of .step3_result.evidence_refs from a live shallow call using real insurer names.

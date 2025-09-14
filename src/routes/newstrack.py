@@ -9,8 +9,32 @@ from typing import Dict, List, Any, Optional, Tuple
 from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
 from src.utils.guardrails import enforce_isolation, load_guards
+from src.utils.config import (
+    get_search_mode, get_recency_window, get_search_provider, 
+    get_llm_test_mode, get_search_test_mode, should_bypass_cache,
+    get_max_results_for_mode
+)
 
 newstrack_bp = Blueprint('newstrack', __name__)
+
+
+def get_runtime_config(search_mode: Optional[str] = None, 
+                      recency_window_months: Optional[int] = None,
+                      max_results_per_keyword: Optional[int] = None) -> Dict[str, Any]:
+    """Get the effective runtime configuration."""
+    effective_search_mode = search_mode or get_search_mode()
+    effective_recency = recency_window_months or get_recency_window()
+    effective_max_results = max_results_per_keyword or get_max_results_for_mode(effective_search_mode)
+    
+    return {
+        "search_mode": effective_search_mode,
+        "recency_window_months": effective_recency,
+        "max_results_per_keyword": effective_max_results,
+        "provider": get_search_provider(),
+        "llm_test_mode": get_llm_test_mode(),
+        "search_test_mode": get_search_test_mode(),
+        "bypass_cache": should_bypass_cache()
+    }
 
 
 def create_error_response(code: int, message: str) -> tuple:
@@ -332,6 +356,9 @@ def process_all_steps():
         except Exception as e:
             current_app.logger.warning(f"Failed to write audit entry: {e}")
         
+        # Get runtime configuration for response
+        runtime_config = get_runtime_config(search_mode, recency_window_months, max_results_per_keyword)
+        
         # Combine all results 
         combined_result = {
             'success': True,
@@ -351,6 +378,7 @@ def process_all_steps():
             },
             'final_result': drop_result,
             'guardrails': categorize_result['guardrails'],
+            'runtime_config': runtime_config,
             'batch_id': batch_id,
             'timing_ms': processing_time_ms
         }
@@ -435,4 +463,20 @@ def get_status():
     except Exception as e:
         current_app.logger.error(f"Status endpoint error: {str(e)}")
         return create_error_response(500, "Failed to retrieve status information")
+
+
+@newstrack_bp.route('/debug/config', methods=['GET'])
+def get_debug_config():
+    """
+    Debug endpoint to show current runtime configuration.
+    Returns the same runtime_config block without secrets.
+    """
+    try:
+        return jsonify({
+            "runtime_config": get_runtime_config()
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Debug config error: {str(e)}")
+        return create_error_response(500, "Failed to retrieve debug configuration")
 
