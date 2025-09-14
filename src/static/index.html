@@ -710,12 +710,30 @@
             document.getElementById('progressContainer').style.display = 'none';
         }
         
+        // HTML escaping function to prevent XSS
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return text;
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Safe URL validation
+        function isValidUrl(string) {
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
+        
         function showResults(data) {
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
             
             if (data.error) {
-                resultsDiv.innerHTML = `<div class="error">${data.error}</div>`;
+                resultsDiv.innerHTML = `<div class="error">${escapeHtml(data.error)}</div>`;
                 resultsDiv.style.display = 'block';
                 return;
             }
@@ -740,9 +758,9 @@
                     <div class="metadata">
                         <h4>Processing Metadata</h4>
                         <div class="metadata-grid">
-                            ${metadata.batch_id ? `<div class="metadata-item"><span>Batch ID:</span><span>${metadata.batch_id}</span></div>` : ''}
-                            ${metadata.timing_ms ? `<div class="metadata-item"><span>Processing Time:</span><span>${metadata.timing_ms}ms</span></div>` : ''}
-                            ${metadata.processed_count ? `<div class="metadata-item"><span>Keywords Processed:</span><span>${metadata.processed_count}</span></div>` : ''}
+                            ${metadata.batch_id ? `<div class="metadata-item"><span>Batch ID:</span><span>${escapeHtml(String(metadata.batch_id))}</span></div>` : ''}
+                            ${metadata.timing_ms ? `<div class="metadata-item"><span>Processing Time:</span><span>${escapeHtml(String(metadata.timing_ms))}ms</span></div>` : ''}
+                            ${metadata.processed_count ? `<div class="metadata-item"><span>Keywords Processed:</span><span>${escapeHtml(String(metadata.processed_count))}</span></div>` : ''}
                         </div>
                     </div>
                 `;
@@ -759,23 +777,23 @@
                                     <div>
                                         <div class="column-header">Industry</div>
                                         <div class="keywords">
-                                            ${(step1_result.categories?.industry || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(step1_result.categories?.industry || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
-                                        ${step1_result.explanations?.industry ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${step1_result.explanations.industry}</p>` : ''}
+                                        ${step1_result.explanations?.industry ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${escapeHtml(step1_result.explanations.industry)}</p>` : ''}
                                     </div>
                                     <div>
                                         <div class="column-header">Company</div>
                                         <div class="keywords">
-                                            ${(step1_result.categories?.company || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(step1_result.categories?.company || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
-                                        ${step1_result.explanations?.company ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${step1_result.explanations.company}</p>` : ''}
+                                        ${step1_result.explanations?.company ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${escapeHtml(step1_result.explanations.company)}</p>` : ''}
                                     </div>
                                     <div>
                                         <div class="column-header">Regulatory</div>
                                         <div class="keywords">
-                                            ${(step1_result.categories?.regulatory || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(step1_result.categories?.regulatory || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
-                                        ${step1_result.explanations?.regulatory ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${step1_result.explanations.regulatory}</p>` : ''}
+                                        ${step1_result.explanations?.regulatory ? `<p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">${escapeHtml(step1_result.explanations.regulatory)}</p>` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -795,19 +813,19 @@
                                     <div>
                                         <div class="column-header">Industry</div>
                                         <div class="keywords">
-                                            ${(step2_result.categories.industry || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(step2_result.categories.industry || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="column-header">Company</div>
                                         <div class="keywords">
-                                            ${(step2_result.categories.company || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(step2_result.categories.company || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="column-header">Regulatory</div>
                                         <div class="keywords">
-                                            ${(step2_result.categories.regulatory || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(step2_result.categories.regulatory || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
                                     </div>
                                 </div>
@@ -832,19 +850,19 @@
                                     <div>
                                         <div class="column-header">Industry</div>
                                         <div class="keywords">
-                                            ${(updated.industry || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(updated.industry || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="column-header">Company</div>
                                         <div class="keywords">
-                                            ${(updated.company || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(updated.company || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="column-header">Regulatory</div>
                                         <div class="keywords">
-                                            ${(updated.regulatory || []).map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                            ${(updated.regulatory || []).map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
                                         </div>
                                     </div>
                                 </div>`;
@@ -869,8 +887,8 @@
                             <h4>Removed Keywords</h4>
                             ${removedItems.map(item => `
                                 <div class="removed-item">
-                                    <div class="removed-keyword">${item.keyword} (${item.category})</div>
-                                    <div class="removed-reason">${item.reason}</div>
+                                    <div class="removed-keyword">${escapeHtml(item.keyword)} (${escapeHtml(item.category)})</div>
+                                    <div class="removed-reason">${escapeHtml(item.reason)}</div>
                                 </div>
                             `).join('')}
                         </div>
@@ -910,7 +928,7 @@
                         ${!completeness.is_complete && completeness.missing_keywords ? `
                             <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; border-left: 3px solid #ffc107;">
                                 <strong>Completeness Check Failed</strong><br>
-                                Missing keywords: ${completeness.missing_keywords.join(', ')}
+                                Missing keywords: ${completeness.missing_keywords.map(k => escapeHtml(k)).join(', ')}
                             </div>
                         ` : completeness.is_complete ? `
                             <div style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 4px; border-left: 3px solid #28a745;">
@@ -934,17 +952,17 @@
                     if (evidenceList && evidenceList.length > 0) {
                         html += `
                             <details class="evidence-keyword">
-                                <summary>${keyword} (${evidenceList.length} evidence items)</summary>
+                                <summary>${escapeHtml(keyword)} (${evidenceList.length} evidence items)</summary>
                                 <ul class="evidence-list">
                                     ${evidenceList.map(evidence => `
                                         <li class="evidence-item">
                                             <div class="evidence-title">
-                                                ${evidence.url ? `<a href="${evidence.url}" target="_blank">${evidence.title || 'News Article'}</a>` : evidence.title || 'News Article'}
+                                                ${evidence.url && isValidUrl(evidence.url) ? `<a href="${escapeHtml(evidence.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(evidence.title || 'News Article')}</a>` : escapeHtml(evidence.title || 'News Article')}
                                             </div>
                                             <div class="evidence-meta">
-                                                Published: ${evidence.published_date || 'Unknown'} | Provider: ${evidence.provider || 'Unknown'}
+                                                Published: ${escapeHtml(evidence.published_date || 'Unknown')} | Provider: ${escapeHtml(evidence.provider || 'Unknown')}
                                             </div>
-                                            <div class="evidence-snippet">${evidence.snippet || 'No snippet available'}</div>
+                                            <div class="evidence-snippet">${escapeHtml(evidence.snippet || 'No snippet available')}</div>
                                         </li>
                                     `).join('')}
                                 </ul>
@@ -957,14 +975,26 @@
             }
             
             // Raw JSON Toggle
+            const jsonId = escapeHtml(String(data.batch_id || Date.now()));
             html += `
                 <div class="raw-json-section">
-                    <button class="json-toggle" onclick="toggleRawJson('${data.batch_id || Date.now()}')">Show Raw JSON</button>
-                    <div id="json-${data.batch_id || Date.now()}" class="json-content" style="display: none;">
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <button class="json-toggle" onclick="toggleRawJson('${jsonId}')">Show Raw JSON</button>
+                    <div id="json-${jsonId}" class="json-content" style="display: none;">
+                        <pre></pre>
                     </div>
                 </div>
             `;
+            
+            // Safely set JSON content after DOM insertion
+            setTimeout(() => {
+                const jsonContainer = document.getElementById(`json-${jsonId}`);
+                if (jsonContainer) {
+                    const preElement = jsonContainer.querySelector('pre');
+                    if (preElement) {
+                        preElement.textContent = JSON.stringify(data, null, 2);
+                    }
+                }
+            }, 0);
             
             resultsDiv.innerHTML = html;
             resultsDiv.style.display = 'block';
@@ -994,19 +1024,25 @@
                 current_date: formData.get('date')
             };
             
-            // Add optional Evidence Mode parameters if they have values
+            // Add optional Evidence Mode parameters if they have values with validation
             const searchMode = formData.get('search_mode');
             const recencyWindow = formData.get('recency_window_months');
             const maxResults = formData.get('max_results_per_keyword');
             
-            if (searchMode && searchMode !== '') {
+            if (searchMode && searchMode !== '' && ['off', 'test', 'shallow', 'deep'].includes(searchMode)) {
                 data.search_mode = searchMode;
             }
             if (recencyWindow && recencyWindow !== '') {
-                data.recency_window_months = parseInt(recencyWindow);
+                const recencyNum = parseInt(recencyWindow);
+                if (!isNaN(recencyNum) && recencyNum >= 1 && recencyNum <= 12) {
+                    data.recency_window_months = recencyNum;
+                }
             }
             if (maxResults && maxResults !== '') {
-                data.max_results_per_keyword = parseInt(maxResults);
+                const maxNum = parseInt(maxResults);
+                if (!isNaN(maxNum) && (maxNum === 3 || maxNum === 6)) {
+                    data.max_results_per_keyword = maxNum;
+                }
             }
             
             // Disable buttons
