@@ -12,6 +12,8 @@ from src.services.newstrack_service import do_categorize, do_expand, do_drop
 from src.utils.audit import get_audit_logger
 from src.utils.guardrails import enforce_isolation, load_guards, get_guardrails_engine
 from src.utils.excel_ingest import extract_keywords_from_excel
+from src.utils.csv_ingest import extract_keywords_from_csv, create_batches, validate_csv_format
+from src.services.batch_service import get_batch_service
 from src.utils.config import (
     get_search_mode, get_recency_window, get_search_provider, 
     get_llm_test_mode, get_search_test_mode, should_bypass_cache,
@@ -738,4 +740,296 @@ def get_debug_config():
     except Exception as e:
         current_app.logger.error(f"Debug config error: {str(e)}")
         return create_error_response(500, "Failed to retrieve debug configuration")
+
+
+# CSV Upload and Auto-Batching Endpoints
+
+@newstrack_bp.route('/keywords/upload-csv', methods=['POST'])
+def upload_csv():
+    """
+    Upload CSV file and create auto-batches for processing.
+    Supports UTF-8, Windows-1252, and various CSV formats with auto-detection.
+    """
+    try:
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return create_error_response(400, "No CSV file uploaded")
+        
+        file = request.files['file']
+        if file.filename == '':
+            return create_error_response(400, "No file selected")
+        
+        # Validate file extension
+        if not file.filename.lower().endswith(('.csv', '.txt')):
+            return create_error_response(400, "Invalid file type. Please upload a CSV file.")
+        
+        # Get processing parameters
+        sector = request.form.get('sector', '').strip()
+        if not sector:
+            return create_error_response(400, "Sector is required")
+        
+        batch_size = int(request.form.get('batch_size', 200))
+        if batch_size <= 0 or batch_size > 1000:
+            return create_error_response(400, "Batch size must be between 1 and 1000")
+        
+        search_mode = request.form.get('search_mode', 'shallow')
+        current_date = request.form.get('current_date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # Read and validate CSV
+        csv_content = io.BytesIO(file.read())
+        validation = validate_csv_format(csv_content, max_rows=25000)
+        
+        if not validation['valid']:
+            return create_error_response(400, f"CSV validation failed: {validation['error']}")
+        
+        if validation['row_count'] == 0:
+            return create_error_response(400, "CSV file contains no valid keywords")
+        
+        # Extract keywords from CSV
+        csv_content.seek(0)
+        extraction_result = extract_keywords_from_csv(csv_content)
+        
+        if not extraction_result['validation']['valid']:
+            return create_error_response(400, f"CSV processing failed: {extraction_result['validation']['error']}")
+        
+        keywords = extraction_result['keywords']
+        if not keywords:
+            return create_error_response(400, "No valid keywords found in CSV")
+        
+        # Create auto-batches
+        batch_group = create_batches(keywords, batch_size=batch_size)
+        
+        # Initialize batch service
+        batch_service = get_batch_service()
+        batch_service.create_batch_group(
+            group_id=batch_group['group_id'],
+            batches=batch_group['batches'],
+            total_keywords=batch_group['total_keywords']
+        )
+        
+        # Start processing immediately
+        processing_config = {
+            'search_mode': search_mode,
+            'current_date': current_date,
+            'recency_window_months': get_recency_window(),
+            'max_results_per_keyword': get_max_results_for_mode(search_mode)
+        }
+        
+        batch_service.start_batch_processing(
+            group_id=batch_group['group_id'],
+            sector=sector,
+            processing_config=processing_config
+        )
+        
+        # Return response with preview and batch info
+        return jsonify({
+            "success": True,
+            "group_id": batch_group['group_id'],
+            "total_batches": batch_group['total_batches'],
+            "total_keywords": batch_group['total_keywords'],
+            "batch_size": batch_size,
+            "preview": {
+                "sample_keywords": extraction_result['validation']['sample_keywords'],
+                "region_breakdown": extraction_result['stats']['region_breakdown'],
+                "columns_detected": validation['columns_found']
+            },
+            "processing_started": True,
+            "status_url": f"/api/batches/{batch_group['group_id']}/status",
+            "result_url": f"/api/batches/{batch_group['group_id']}/result",
+            "export_url": f"/api/batches/{batch_group['group_id']}/export.csv"
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"CSV upload error: {str(e)}")
+        return create_error_response(500, f"CSV upload failed: {str(e)}")
+
+
+@newstrack_bp.route('/batches/<group_id>/status', methods=['GET'])
+def get_batch_status(group_id: str):
+    """Get current status of a batch group with progress information."""
+    try:
+        batch_service = get_batch_service()
+        status = batch_service.get_batch_group_status(group_id)
+        
+        if status is None:
+            return create_error_response(404, f"Batch group {group_id} not found")
+        
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Batch status error: {str(e)}")
+        return create_error_response(500, f"Failed to get batch status: {str(e)}")
+
+
+@newstrack_bp.route('/batches/<group_id>/result', methods=['GET'])
+def get_batch_results(group_id: str):
+    """Get results for all completed batches in a group."""
+    try:
+        batch_service = get_batch_service()
+        results = batch_service.get_batch_group_results(group_id)
+        
+        if results is None:
+            return create_error_response(404, f"Batch group {group_id} not found")
+        
+        return jsonify({
+            "success": True,
+            "group_id": group_id,
+            "results": results,
+            "total_batches": len(results)
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Batch results error: {str(e)}")
+        return create_error_response(500, f"Failed to get batch results: {str(e)}")
+
+
+@newstrack_bp.route('/batches/<group_id>/export.csv', methods=['GET'])
+def export_batch_results_csv(group_id: str):
+    """Export consolidated CSV with flattened keyword results."""
+    try:
+        from flask import make_response
+        import csv as csv_module
+        
+        batch_service = get_batch_service()
+        results = batch_service.get_batch_group_results(group_id)
+        
+        if results is None:
+            return create_error_response(404, f"Batch group {group_id} not found")
+        
+        if not results:
+            return create_error_response(400, "No completed batches found for export")
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv_module.writer(output)
+        
+        # Write headers
+        headers = [
+            'Keyword', 'Category', 'Region Mode', 'Country', 'Flags (JSON)', 
+            'Top Evidence Title', 'Top Evidence URL', 'Top Evidence Score', 
+            'Days Since Published', 'Debug Query', 'Batch ID'
+        ]
+        writer.writerow(headers)
+        
+        # Process all batch results
+        for batch_result in results:
+            final_result = batch_result.get('final_result', {})
+            flags = final_result.get('flags', {})
+            evidence_refs = final_result.get('evidence_refs', {})
+            debug_queries = final_result.get('debug_queries', {})
+            region_scope = final_result.get('region_scope', {})
+            batch_id = batch_result.get('batch_id', 'unknown')
+            
+            for keyword in flags.keys():
+                # Get flag information
+                keyword_flags = flags.get(keyword, [])
+                flags_json = json.dumps(keyword_flags) if keyword_flags else ""
+                
+                # Get region information
+                region_info = region_scope.get(keyword, {})
+                region_mode = region_info.get('mode', 'global')
+                country = region_info.get('country', '')
+                
+                # Get top evidence
+                keyword_evidence = evidence_refs.get(keyword, [])
+                top_evidence_title = ""
+                top_evidence_url = ""
+                top_evidence_score = ""
+                days_since_published = ""
+                
+                if keyword_evidence:
+                    # Sort by score and take the top one
+                    sorted_evidence = sorted(keyword_evidence, key=lambda x: x.get('score', 0), reverse=True)
+                    top_evidence = sorted_evidence[0]
+                    
+                    top_evidence_title = top_evidence.get('title', '')[:100]  # Truncate long titles
+                    top_evidence_url = top_evidence.get('url', '')
+                    top_evidence_score = str(top_evidence.get('score', ''))
+                    
+                    # Calculate days since published
+                    published_date = top_evidence.get('published_date', '')
+                    if published_date:
+                        try:
+                            from datetime import datetime
+                            pub_date = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+                            current_date = datetime.now(pub_date.tzinfo)
+                            days_diff = (current_date - pub_date).days
+                            days_since_published = str(days_diff)
+                        except:
+                            days_since_published = "unknown"
+                
+                # Get debug query
+                debug_query = debug_queries.get(keyword, '')
+                
+                # Determine category (default to industry if not specified)
+                category = 'industry'  # Default from CSV processing
+                
+                # Write row
+                writer.writerow([
+                    keyword,
+                    category,
+                    region_mode,
+                    country,
+                    flags_json,
+                    top_evidence_title,
+                    top_evidence_url,
+                    top_evidence_score,
+                    days_since_published,
+                    debug_query,
+                    batch_id
+                ])
+        
+        # Create response
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename=newstrack_results_{group_id}.csv'
+        
+        return response
+        
+    except Exception as e:
+        current_app.logger.error(f"CSV export error: {str(e)}")
+        return create_error_response(500, f"Failed to export CSV: {str(e)}")
+
+
+@newstrack_bp.route('/keywords/csv-template', methods=['GET'])
+def download_csv_template():
+    """Download a sample CSV template for keyword uploads."""
+    try:
+        from flask import make_response
+        import csv as csv_module
+        
+        # Create sample CSV content
+        output = io.StringIO()
+        writer = csv_module.writer(output)
+        
+        # Write headers and sample data
+        writer.writerow(['Keyword', 'Category', 'Source location'])
+        writer.writerow(['Allianz', 'company', 'South Africa'])
+        writer.writerow(['Short-term Insurance', 'industry', 'South Africa'])
+        writer.writerow(['AIG', 'company', ''])
+        writer.writerow(['1st for Women', 'company', 'South Africa'])
+        writer.writerow(['Prudential Authority', 'regulatory', '!South Africa'])
+        writer.writerow(['4 Sure Insurance', 'company', 'South Africa'])
+        writer.writerow(['Motor vehicle insurance', 'industry', ''])
+        
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = 'attachment; filename=newstrack_keywords_template.csv'
+        
+        return response
+        
+    except Exception as e:
+        current_app.logger.error(f"CSV template error: {str(e)}")
+        return create_error_response(500, "Failed to generate CSV template")
 

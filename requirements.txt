@@ -60,3 +60,4 @@ google-generativeai
 python-dateutil
 openpyxl
 pandas
+chardet

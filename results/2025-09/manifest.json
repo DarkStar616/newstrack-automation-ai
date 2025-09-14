@@ -720,32 +720,40 @@
       "input_total": 3,
       "output_accounted": 16,
       "timing_ms": 148925
+    },
+    "2025-09-14-044": {
+      "timestamp": "2025-09-14T14:21:07.024684",
+      "category": "Short-term Insurance",
+      "step": "process-all",
+      "input_total": 10,
+      "output_accounted": 24,
+      "timing_ms": 121817
     }
   },
   "totals": {
-    "total_batches": 90,
-    "total_keywords_processed": 7096,
-    "total_keywords_output": 460,
+    "total_batches": 91,
+    "total_keywords_processed": 7106,
+    "total_keywords_output": 484,
     "total_duplicates_dropped": 224,
     "total_leaks_blocked": 0,
-    "total_timing_ms": 603982,
-    "total_keywords_with_evidence": 387,
-    "total_evidence_items": 829,
+    "total_timing_ms": 725799,
+    "total_keywords_with_evidence": 411,
+    "total_evidence_items": 868,
     "total_keywords_dropped_with_evidence": 0,
     "total_keywords_dropped_no_evidence": 0
   },
   "categories": {
     "industry": {
-      "batches": 80,
-      "keywords": 147
+      "batches": 81,
+      "keywords": 153
     },
     "company": {
-      "batches": 80,
-      "keywords": 146
+      "batches": 81,
+      "keywords": 159
     },
     "regulatory": {
-      "batches": 80,
-      "keywords": 137
+      "batches": 81,
+      "keywords": 142
     }
   },
   "search": {

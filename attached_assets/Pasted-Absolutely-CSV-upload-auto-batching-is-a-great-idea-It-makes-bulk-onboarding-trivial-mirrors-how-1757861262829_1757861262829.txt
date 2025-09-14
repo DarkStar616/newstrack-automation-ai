@@ -1,0 +1,183 @@
+Absolutely—CSV upload + auto-batching is a great idea. It makes bulk onboarding trivial, mirrors how teams already manage keyword lists, and pairs nicely with your “never delete, only flag” model. Done right (validation + progress + resumable batches), it’ll be a crowd-pleaser.
+
+Here’s your copy-paste prompt for Replit Agent 3 that adds CSV upload, auto-batching (200/ batch), and runs everything LIVE with the same guarantees as before.
+
+⸻
+
+Goal (unchanged)
+
+Keep all keywords. Never delete. Always construct searches as {sector} + {keyword} + {region scope}. Respect Excel/CSV “Source location” rules and the UI toggle. Reduce off-topic hits, improve evidence quality, and preserve the single top-level guardrails block. Everything runs live (no test mode anywhere).
+
+Contract (unchanged)
+	•	final_result.removed is always [].
+	•	final_result.flags maps keyword -> [flag objects].
+	•	Only one guardrails object at the top level; none nested inside final_result.
+	•	Preserve final_result.evidence_refs with scored items.
+	•	Keep existing fields: batch_id, runtime_config, success, timing_ms.
+
+Region logic (Excel/CSV + UI) (unchanged behavior, extended to CSV)
+
+Interpret region from either CSV/Excel “Source location” or the UI toggle. Priority: request body source_location (UI) overrides row value if both exist for a run.
+	•	"" (blank) → global (no region term)
+	•	"South Africa" → include only SA (append South Africa)
+	•	"!South Africa" → exclude SA (append -South Africa)
+	•	Extendable: "Country X" or "!Country X" → same include/exclude rule.
+	•	Case/whitespace tolerant. If multiple spaces or odd punctuation, normalize.
+
+Query builder (mandatory)
+
+For each keyword, build exactly one query string:
+BASE = "{sector} {keyword}"
+	•	IF include_country: QUERY = BASE + " {country}"
+	•	ELIF exclude_country: QUERY = BASE + " -{country}"
+	•	ELSE: QUERY = BASE
+	•	Trim/normalize whitespace.
+	•	No quotes unless the keyword already contains an exact phrase.
+	•	Store the final string in final_result.debug_queries[keyword].
+
+Examples
+	•	Sector: Short-term Insurance, Keyword: Santam, Region: South Africa → Short-term Insurance Santam South Africa
+	•	Sector: Short-term Insurance, Keyword: Hollard Insurance, Region: !South Africa → Short-term Insurance Hollard Insurance -South Africa
+	•	Sector: Short-term Insurance, Keyword: Underwriting, Region: global → Short-term Insurance Underwriting
+
+Evidence gathering (live only)
+	•	Use runtime_config.max_results_per_keyword (default 3).
+	•	Each evidence item includes:
+	•	provider, title, url, snippet, published_date, region_guess
+	•	score and score_breakdown with: title_relevance, content_relevance, sector_relevance, region, recency, domain, source_quality.
+	•	Prefer authoritative domains for companies/regulators; down-weight general linkfarms.
+
+Scoring guidance (unchanged)
+	•	Start at 0. Add:
+	•	title_relevance up to +2 when sector & keyword appear or tight semantic match.
+	•	content_relevance up to +1.5 for body match.
+	•	sector_relevance +1 when P&C/short-term context is explicit.
+	•	region +1 for include-country matches; 0 if global; +0.5 if unknown; +1 for “not-SA” when exclude rule clearly satisfied.
+	•	recency up to +1.5 within the recency window; 0 otherwise.
+	•	domain/source_quality +0..+1 for reputable sources.
+	•	Keep deterministic.
+
+Flagging (never delete)
+
+Attach zero or more flags per keyword:
+	•	off_topic (block): no evidence meaningfully relates in sector context.
+	•	stale (warn): all items outside runtime_config.recency_window_months; include days_out_of_window.
+	•	weak_evidence (warn): all items scored < 3.0.
+	•	region_mismatch (warn): include mode requested but all evidence contradicts the include country.
+	•	dup_result (info): de-duplicate near-identical URLs/titles.
+Important: even with block, do not remove the keyword; it stays in updated.
+
+Runtime & guardrails (unchanged)
+	•	Preserve runtime_config (provider, search_mode, recency_window_months, max_results_per_keyword).
+	•	Compute guardrails.counts with input_total, output_accounted, duplicates_dropped, leaks_blocked.
+	•	completeness_check.is_complete = true when all inputs accounted for in updated and flags.
+
+Logging & audit (unchanged)
+	•	For each keyword, log constructed_query, region_mode (include/exclude/global), and country_token.
+	•	Expose final_result.debug_queries and final_result.region_scope[keyword] = { mode, country }.
+
+UI hooks (already present)
+	•	Continue rendering:
+	•	Region chips (Global / Include / Exclude + country)
+	•	Flag chips with severity color + tooltip (reason text)
+	•	Recency badge (days since published_date)
+	•	“Show queries” toggle uses final_result.debug_queries.
+
+⸻
+
+NEW: CSV Upload & Auto-Batching (LIVE)
+
+Requirements
+	1.	Accept .csv in addition to Excel on the upload route(s).
+	•	Support common encodings: UTF-8 (with/without BOM), Windows-1252; auto-detect where possible.
+	•	Support separators: , (default), ; if detected; tolerate quoted fields and embedded commas.
+	•	Header handling:
+	•	With header: look for columns: Keyword (required), Category (optional: company|industry|regulatory), Source location (optional).
+	•	Headerless CSV: treat first column as Keyword. Default Category=industry, Source location="".
+	•	Whitespace/casing normalized; drop empty rows; deduplicate exact duplicate keywords within the file before processing.
+	2.	Schema mapping
+	•	CSV columns → internal fields:
+	•	Keyword → keyword (string, required)
+	•	Category → category (string in {company, industry, regulatory} else default industry)
+	•	Source location → per-row region rule as specified above
+	•	Return a normalized preview in the API response for the first N rows (e.g., 10) with parsed keyword, category, source_location.
+	3.	Auto-batching (size = 200)
+	•	After parsing, split into batches of 200 keywords each (keep per-row Source location with each keyword).
+	•	Create a batch group id and per-batch ids; enqueue batches.
+	•	Process batches LIVE end-to-end using the existing pipeline and rules in this prompt.
+	•	Respect rate limits; add bounded concurrency; retry transient fetches with backoff.
+	4.	Progress, resilience, resumption
+	•	Add /api/batches/:group_id/status returning:
+	•	total_batches, completed, failed, in_progress, per-batch timings, error_summaries
+	•	Persist partial results per batch (so a crash doesn’t lose everything).
+	•	/api/batches/:group_id/result returns an array of batch results (each with the normal final_result schema).
+	•	UI: show a progress bar + per-batch counts; allow downloading a consolidated CSV of results.
+	5.	Consolidated CSV export
+	•	Endpoint /api/batches/:group_id/export.csv that flattens results per keyword:
+	•	Columns: Keyword, Category, Region Mode, Country, Flags (JSON), Top Evidence Title, Top Evidence URL, Top Evidence Score, Days Since Published, Debug Query, Batch ID
+	•	Include only top evidence item per keyword by score (or blank if none).
+	6.	Validation & errors
+	•	If Keyword column missing (in headered CSV) → 400 with clear message.
+	•	If file unreadable/encoding error → 400 with suggested fixes.
+	•	If more than, say, 25k rows → 413 with instruction to split the file.
+	7.	Live-only guarantee
+	•	Do not use any test mode for CSV processing. All evidence gathering is live.
+	•	All the same contract/flags/scoring/region logic applies per keyword.
+
+API Notes (you can adapt route names if you already have upload endpoints)
+	•	POST /api/keywords/upload-csv → parses file, returns { group_id, batches: [{batch_id, size}], preview: [...] }
+	•	GET /api/batches/:group_id/status
+	•	GET /api/batches/:group_id/result
+	•	GET /api/batches/:group_id/export.csv
+
+⸻
+
+Acceptance checks (LIVE; bake into your test route/scripts)
+
+Global invariants
+	•	final_result.removed == []
+	•	No guardrails inside final_result
+	•	Every keyword has a debug_queries entry
+
+Evidence quality (live)
+	•	Off-topic rates reduced vs. prior build; assert ≥30% of company/regulator keywords have at least one evidence item with score ≥ 4.0.
+
+Region include (live)
+	•	When South Africa, at least one item per SA-centric company (e.g., Santam, Hollard) has region_guess = "South Africa" or a .za URL.
+
+Region exclude (live)
+	•	When !South Africa, ensure no evidence has region_guess = "South Africa"; if any slips through, it is down-weighted below threshold and region_mismatch raised.
+
+CSV flow (live)
+	•	Upload a CSV with rows spanning:
+	•	"", South Africa, !South Africa, mixed case/whitespace.
+	•	Both headered and headerless variants.
+	•	Verify:
+	•	Parsed preview matches normalization.
+	•	Auto-batching produced correct number of 200-sized batches (last may be smaller).
+	•	Status endpoint increments as batches finish; consolidated export is downloadable and well-formed.
+
+Performance probe (live)
+	•	Run a 200-keyword CSV batch and report:
+	•	timing_ms total, p95 per-keyword latency, exceptions/retries.
+	•	If slow, propose live-safe optimizations (parallelism limits, domain→region cache, tuned max_results_per_keyword, backoff); apply trivial wins and re-run.
+
+⸻
+
+Response schema (additions only; unchanged otherwise)
+
+Add to final_result:
+
+{
+  "debug_queries": { "Keyword": "constructed query ..." },
+  "region_scope": { "Keyword": { "mode": "include|exclude|global", "country": "South Africa" } }
+}
+
+Deliverables
+	•	CSV ingestion with validation + header/encoding handling.
+	•	Auto-batching (200) with queue, progress/status, resumability.
+	•	Consolidated CSV export endpoint.
+	•	Live acceptance scripts for Contract, Region (include/exclude), CSV flow, Evidence quality %, and Performance.
+	•	If any check fails: return minimal diffs (file + line) and re-run until PASS.
+
+Reminder: Everything is LIVE. No test flags, no synthetic evidence.

@@ -878,6 +878,111 @@
                 </div>
             </form>
             
+            <!-- CSV Upload Section -->
+            <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #e9ecef;">
+                <h3 style="color: #2c3e50; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                    📊 CSV Bulk Upload
+                    <span style="font-size: 0.7em; background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 12px; font-weight: 500;">Auto-batching</span>
+                </h3>
+                
+                <div id="csvUploadSection">
+                    <div class="form-group">
+                        <label for="csvFile">Select CSV File:</label>
+                        <input type="file" id="csvFile" accept=".csv,.txt" style="padding: 10px; border: 2px dashed #dee2e6; border-radius: 8px; width: 100%; background: #f8f9fa;">
+                        <small style="color: #6c757d; margin-top: 5px; display: block;">
+                            Supports UTF-8, Windows-1252 encoding. Max 25,000 rows. 
+                            <a href="/api/keywords/csv-template" style="color: #667eea; text-decoration: none;">Download template</a>
+                        </small>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label for="csvSector">Sector:</label>
+                            <input type="text" id="csvSector" placeholder="e.g., Short-term Insurance" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="batchSize">Batch Size:</label>
+                            <select id="batchSize" style="width: 100%;">
+                                <option value="200" selected>200 keywords</option>
+                                <option value="100">100 keywords</option>
+                                <option value="50">50 keywords</option>
+                                <option value="500">500 keywords</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="csvSearchMode">Processing Mode:</label>
+                            <select id="csvSearchMode" style="width: 100%;">
+                                <option value="shallow" selected>Live (Shallow)</option>
+                                <option value="test">Test Mode</option>
+                                <option value="deep">Live (Deep)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="uploadCSV()" id="uploadBtn">
+                            📤 Upload & Process CSV
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="showCSVPreview()" id="previewBtn" disabled>
+                            👀 Preview CSV
+                        </button>
+                    </div>
+                    
+                    <div id="csvPreview" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+                        <h4 style="margin-bottom: 15px; color: #2c3e50;">CSV Preview</h4>
+                        <div id="csvPreviewContent"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Batch Progress Section -->
+            <div id="batchProgressSection" style="display: none; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+                <h4 style="margin-bottom: 15px; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+                    ⚡ Batch Processing Status
+                    <span id="batchGroupId" style="font-size: 0.7em; background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 12px; font-weight: 500;"></span>
+                </h4>
+                
+                <div id="batchOverallProgress" style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Overall Progress</span>
+                        <span id="batchProgressText">0 / 0 batches</span>
+                    </div>
+                    <div style="width: 100%; height: 12px; background: #e9ecef; border-radius: 6px; overflow: hidden;">
+                        <div id="batchProgressBar" style="height: 100%; background: linear-gradient(90deg, #28a745, #20c997); width: 0%; transition: width 0.5s ease;"></div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                    <div style="text-align: center; padding: 10px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                        <div style="font-size: 1.2em; font-weight: 600; color: #28a745;" id="completedCount">0</div>
+                        <div style="font-size: 0.8em; color: #6c757d;">Completed</div>
+                    </div>
+                    <div style="text-align: center; padding: 10px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                        <div style="font-size: 1.2em; font-weight: 600; color: #ffc107;" id="inProgressCount">0</div>
+                        <div style="font-size: 0.8em; color: #6c757d;">In Progress</div>
+                    </div>
+                    <div style="text-align: center; padding: 10px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                        <div style="font-size: 1.2em; font-weight: 600; color: #dc3545;" id="failedCount">0</div>
+                        <div style="font-size: 0.8em; color: #6c757d;">Failed</div>
+                    </div>
+                    <div style="text-align: center; padding: 10px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                        <div style="font-size: 1.2em; font-weight: 600; color: #17a2b8;" id="totalKeywords">0</div>
+                        <div style="font-size: 0.8em; color: #6c757d;">Keywords</div>
+                    </div>
+                </div>
+                
+                <div id="batchResults" style="display: none;">
+                    <div class="button-group">
+                        <button type="button" class="btn btn-success" onclick="downloadBatchResults()" id="downloadBtn">
+                            📥 Download Results CSV
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="viewBatchResults()" id="viewResultsBtn">
+                            👁️ View Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="progress-container" id="progressContainer">
                 <div class="progress-steps">
                     <div class="step" id="step1">Categorize</div>
@@ -1515,6 +1620,266 @@
         
         // Set default date to current month
         document.getElementById('date').value = new Date().toISOString().slice(0, 7);
+        
+        // CSV Upload functionality
+        let currentBatchGroupId = null;
+        let batchStatusInterval = null;
+        
+        // Enable preview button when file is selected
+        document.getElementById('csvFile').addEventListener('change', function() {
+            const previewBtn = document.getElementById('previewBtn');
+            previewBtn.disabled = !this.files.length;
+        });
+        
+        async function showCSVPreview() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file first.');
+                return;
+            }
+            
+            const previewDiv = document.getElementById('csvPreview');
+            const previewContent = document.getElementById('csvPreviewContent');
+            
+            try {
+                const text = await file.text();
+                const lines = text.split('\n').slice(0, 6); // Show first 6 lines
+                
+                let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">';
+                lines.forEach((line, index) => {
+                    if (line.trim()) {
+                        const cells = line.split(',');
+                        const isHeader = index === 0;
+                        html += `<tr style="background: ${isHeader ? '#e9ecef' : 'white'};">`;
+                        cells.forEach(cell => {
+                            const style = `padding: 8px; border: 1px solid #dee2e6; ${isHeader ? 'font-weight: 600;' : ''}`;
+                            html += `<td style="${style}">${escapeHtml(cell.trim())}</td>`;
+                        });
+                        html += '</tr>';
+                    }
+                });
+                html += '</table>';
+                
+                if (lines.length > 6) {
+                    html += '<p style="margin-top: 10px; font-size: 0.8em; color: #6c757d;">... and more rows</p>';
+                }
+                
+                previewContent.innerHTML = html;
+                previewDiv.style.display = 'block';
+                
+            } catch (error) {
+                previewContent.innerHTML = `<div style="color: #dc3545;">Error reading file: ${escapeHtml(error.message)}</div>`;
+                previewDiv.style.display = 'block';
+            }
+        }
+        
+        async function uploadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const sectorInput = document.getElementById('csvSector');
+            const batchSizeSelect = document.getElementById('batchSize');
+            const searchModeSelect = document.getElementById('csvSearchMode');
+            
+            // Validation
+            if (!fileInput.files.length) {
+                alert('Please select a CSV file.');
+                return;
+            }
+            
+            if (!sectorInput.value.trim()) {
+                alert('Please enter a sector.');
+                return;
+            }
+            
+            const uploadBtn = document.getElementById('uploadBtn');
+            const originalText = uploadBtn.textContent;
+            
+            try {
+                // Disable button and show loading
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '⏳ Uploading...';
+                
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('sector', sectorInput.value.trim());
+                formData.append('batch_size', batchSizeSelect.value);
+                formData.append('search_mode', searchModeSelect.value);
+                formData.append('current_date', new Date().toISOString().slice(0, 10));
+                
+                // Upload CSV
+                const response = await fetch('/api/keywords/upload-csv', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    // Show success and start monitoring
+                    currentBatchGroupId = result.group_id;
+                    showBatchProgress(result);
+                    startBatchMonitoring();
+                    
+                    // Clear the form
+                    fileInput.value = '';
+                    sectorInput.value = '';
+                    document.getElementById('csvPreview').style.display = 'none';
+                    document.getElementById('previewBtn').disabled = true;
+                    
+                } else {
+                    alert(`Upload failed: ${result.error?.message || result.error || 'Unknown error'}`);
+                }
+                
+            } catch (error) {
+                alert(`Upload error: ${error.message}`);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = originalText;
+            }
+        }
+        
+        function showBatchProgress(uploadResult) {
+            const progressSection = document.getElementById('batchProgressSection');
+            const groupIdSpan = document.getElementById('batchGroupId');
+            const totalKeywordsDiv = document.getElementById('totalKeywords');
+            
+            groupIdSpan.textContent = uploadResult.group_id;
+            totalKeywordsDiv.textContent = uploadResult.total_keywords;
+            
+            progressSection.style.display = 'block';
+            
+            // Scroll to progress section
+            progressSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function startBatchMonitoring() {
+            if (!currentBatchGroupId) return;
+            
+            // Clear any existing interval
+            if (batchStatusInterval) {
+                clearInterval(batchStatusInterval);
+            }
+            
+            // Start polling for status updates
+            batchStatusInterval = setInterval(async () => {
+                await updateBatchStatus();
+            }, 2000); // Poll every 2 seconds
+            
+            // Initial status update
+            updateBatchStatus();
+        }
+        
+        async function updateBatchStatus() {
+            if (!currentBatchGroupId) return;
+            
+            try {
+                const response = await fetch(`/api/batches/${currentBatchGroupId}/status`);
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    const status = result.status;
+                    updateBatchUI(status);
+                    
+                    // Stop monitoring if completed
+                    if (status.status === 'completed' || status.status === 'completed_with_errors') {
+                        if (batchStatusInterval) {
+                            clearInterval(batchStatusInterval);
+                            batchStatusInterval = null;
+                        }
+                        showBatchResults();
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating batch status:', error);
+            }
+        }
+        
+        function updateBatchUI(status) {
+            // Update progress bar
+            const progressBar = document.getElementById('batchProgressBar');
+            const progressText = document.getElementById('batchProgressText');
+            const completedCount = document.getElementById('completedCount');
+            const inProgressCount = document.getElementById('inProgressCount');
+            const failedCount = document.getElementById('failedCount');
+            
+            const totalBatches = status.total_batches;
+            const completed = status.completed_batches;
+            const inProgress = status.in_progress_batches;
+            const failed = status.failed_batches;
+            
+            const progressPercent = totalBatches > 0 ? (completed / totalBatches) * 100 : 0;
+            
+            progressBar.style.width = `${progressPercent}%`;
+            progressText.textContent = `${completed} / ${totalBatches} batches`;
+            
+            completedCount.textContent = completed;
+            inProgressCount.textContent = inProgress;
+            failedCount.textContent = failed;
+            
+            // Update colors based on status
+            if (failed > 0) {
+                progressBar.style.background = 'linear-gradient(90deg, #ffc107, #fd7e14)';
+            } else if (completed === totalBatches) {
+                progressBar.style.background = 'linear-gradient(90deg, #28a745, #20c997)';
+            }
+        }
+        
+        function showBatchResults() {
+            const resultsDiv = document.getElementById('batchResults');
+            resultsDiv.style.display = 'block';
+        }
+        
+        async function downloadBatchResults() {
+            if (!currentBatchGroupId) return;
+            
+            try {
+                const downloadBtn = document.getElementById('downloadBtn');
+                const originalText = downloadBtn.textContent;
+                
+                downloadBtn.disabled = true;
+                downloadBtn.textContent = '⏳ Preparing...';
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.href = `/api/batches/${currentBatchGroupId}/export.csv`;
+                link.download = `newstrack_results_${currentBatchGroupId}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = originalText;
+                
+            } catch (error) {
+                alert(`Download failed: ${error.message}`);
+            }
+        }
+        
+        async function viewBatchResults() {
+            if (!currentBatchGroupId) return;
+            
+            try {
+                const response = await fetch(`/api/batches/${currentBatchGroupId}/result`);
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    // Show results in the existing results section
+                    if (result.results && result.results.length > 0) {
+                        // Use the first batch result for display
+                        showResults(result.results[0]);
+                    } else {
+                        alert('No completed results available yet.');
+                    }
+                } else {
+                    alert(`Failed to load results: ${result.error || 'Unknown error'}`);
+                }
+                
+            } catch (error) {
+                alert(`Error loading results: ${error.message}`);
+            }
+        }
     </script>
 </body>
 </html>
